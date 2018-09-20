@@ -94,3 +94,65 @@ class TestInteraction(unittest.TestCase):
     force_by_hand = np.array([[24.0, 0.0, 0.0], [-0.181641, 0.0, 0.0],
                               [-23.818359, 0.0, 0.0], [0.0, 0.0, 0.0]])
     np.testing.assert_array_almost_equal(f, force_by_hand)
+
+
+  def test_create_morse(self):
+    interaction.Morse(5.4, 1.0, 1.0, 2.0, "None")
+
+  def test_morse_two_noshift(self):
+    mor = interaction.Morse(5.4, 1.0, 1.0, 2.0, "None")
+    f = mor.pair_force(np.array([2.0, 0.0, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    e = mor.pair_energ(np.array([2.0, 0.0, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    np.testing.assert_array_almost_equal(f, np.zeros(3))
+    np.testing.assert_almost_equal(e, 0.0)
+    f = mor.pair_force(np.array([0.0, np.log(2)+2, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    e = mor.pair_energ(np.array([0.0, np.log(2)+2, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    np.testing.assert_array_almost_equal(f, np.array([0, -0.5, 0]))
+    np.testing.assert_almost_equal(e, 0.25)
+    f = mor.pair_force(np.array([0.0, 7.0, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    e = mor.pair_energ(np.array([0.0, 7.0, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    np.testing.assert_array_almost_equal(f, np.zeros(3))
+    np.testing.assert_almost_equal(e, 0.0)
+
+  def test_morse_two_displace(self):
+    mor = interaction.Morse(5.4, 1.0, 1.0, 2.0, "Displace")
+    vcut = 0.93436723522719264411398895669
+
+    f = mor.pair_force(np.array([2.0, 0.0, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    e = mor.pair_energ(np.array([2.0, 0.0, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    np.testing.assert_array_almost_equal(f, np.zeros(3))
+    np.testing.assert_almost_equal(e, 0.0 - vcut)
+    f = mor.pair_force(np.array([0.0, np.log(2)+2, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    e = mor.pair_energ(np.array([0.0, np.log(2)+2, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    np.testing.assert_array_almost_equal(f, np.array([0, -0.5, 0]))
+    np.testing.assert_almost_equal(e, 0.25 - vcut)
+    f = mor.pair_force(np.array([0.0, 7.0, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    e = mor.pair_energ(np.array([0.0, 7.0, 0.0]),
+                      np.array([0.0, 0.0, 0.0]))
+    np.testing.assert_array_almost_equal(f, np.zeros(3))
+    np.testing.assert_almost_equal(e, 0.0)
+
+  def test_morse_forces_equal(self):
+    mor = interaction.Morse(5.4, 1.0, 1.0, 2.5, "None")
+    f, e = mor.forces(self.four_by3, self.four_by3)
+    force_by_hand = np.array([[0.0, 0.0, 0.0], [31.2076957+2.13912211, 0.0, 0.0],
+                              [-31.2076957-2.13912211, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    np.testing.assert_array_almost_equal(f, force_by_hand)
+
+  def test_morse_forces_diff(self):
+    mor = interaction.Morse(5.4, 1.0, 1.0, 2.5, "None")
+    f, e = mor.forces(self.four_by3, self.four_by3, pairs=np.array([[0, 2], [0, 3], [1, 2], [1, 3]], dtype=np.int64))
+    force_by_hand = np.array([[31.2076957, 0.0, 0.0], [2.13912211, 0.0, 0.0],
+                              [-2.13912211-31.2076957, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    np.testing.assert_array_almost_equal(f, force_by_hand)
