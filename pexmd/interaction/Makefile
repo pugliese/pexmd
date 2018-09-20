@@ -5,7 +5,7 @@ LD_FLAGS = -shared
 C_FLAGS = -g -O3 -fPIC -std=gnu99
 
 
-all: lj.so
+all: lj.so morse.so
 
 %.so: %.o
 	$(LD) $(LD_FLAGS) $^ -o $@
@@ -14,4 +14,4 @@ all: lj.so
 	$(CC) $(C_FLAGS) $^ -c
 
 clean:
-	rm -rfv lj.so lj.o
+	rm -rfv lj.so lj.o morse.so morse.o

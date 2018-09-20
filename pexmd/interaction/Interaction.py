@@ -118,3 +118,63 @@ class LennardJones(ShortRange):
       return ljf
     elif self.shift_style == 'Displace':
       return ljf - vcut
+
+mor = ct.CDLL('pexmd/interaction/morse.so')
+
+morseforces_c = mor.forces
+morseforces_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.c_float,
+                       ct.c_float, ct.c_float, ct.c_float, ct.c_voidp]
+morseforces_c.restype = ct.c_float
+
+morsepairforce_c = mor.pair_force
+morsepairforce_c.argtypes = [ct.c_float, ct.c_float, ct.c_float, ct.c_float]
+morsepairforce_c.restype = ct.c_float
+
+morsepairenergy_c = mor.pair_energ
+morsepairenergy_c.argtypes = [ct.c_float, ct.c_float, ct.c_float, ct.c_float, ct.c_float]
+morsepairenergy_c.restype = ct.c_float
+
+class Morse(ShortRange):
+  """
+  Morse potential
+  """
+  def __init__(self, rcut, alpha, D, req, shift_style='None'):
+    self.alpha = alpha
+    self.D = D
+    self.req = req
+    super().__init__(rcut, shift_style)
+
+  def forces(self, x, v, pairs=None):
+    """
+    Calculate Morse force
+    """
+    energ = 0
+    forces = np.zeros_like(x, dtype=np.float32)
+    if pairs is None:
+      pairs = np.array(list(it.combinations(range(len(x)), 2)), dtype=np.int64)
+    xp = x.ctypes.data_as(ct.c_voidp)
+    pairsp = pairs.ctypes.data_as(ct.c_voidp)
+    forcesp = forces.ctypes.data_as(ct.c_voidp)
+    energ = morseforces_c(xp, pairsp, len(pairs), self.alpha, self.D, self.req, self.rcut, forcesp)
+    return forces, energ
+
+  def pair_force(self, s1, s2):
+    d = np.linalg.norm(s1-s2)
+    if d > self.rcut:
+      return np.zeros_like(s1)
+    mf = morsepairforce_c(d, self.req, self.D, self.alpha)*(s1-s2)
+    if self.shift_style == 'None':
+      return mf
+    elif self.shift_style == 'Displace':
+      return mf
+
+  def pair_energ(self, s1, s2):
+    d = np.linalg.norm(s1-s2)      # Distance
+    if d >= self.rcut:
+      return 0
+    if self.shift_style == 'None':
+      vcut = 0
+    elif self.shift_style == 'Displace':
+      vcut = morsepairenergy_c(self.rcut, 0, self.req, self.D, self.alpha)
+    me = morsepairenergy_c(d, vcut, self.req, self.D, self.alpha)
+    return me
