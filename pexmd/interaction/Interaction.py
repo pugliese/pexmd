@@ -178,3 +178,107 @@ class Morse(ShortRange):
       vcut = morsepairenergy_c(self.rcut, 0, self.req, self.D, self.alpha)
     me = morsepairenergy_c(d, vcut, self.req, self.D, self.alpha)
     return me
+
+
+pauli = ct.CDLL('pexmd/interaction/pauli.so')
+
+pauliforces_c = pauli.forces
+pauliforces_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.c_float,
+                       ct.c_float, ct.c_float, ct.c_float, ct.c_voidp]
+pauliforces_c.restype = ct.c_float
+
+pauligorces_c = pauli.gorces
+pauligorces_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.c_float,
+                       ct.c_float, ct.c_float, ct.c_float, ct.c_voidp]
+pauligorces_c.restype = ct.c_float
+
+paulipairforce_c = pauli.pair_force
+paulipairforce_c.argtypes = [ct.c_float, ct.c_float, ct.c_float]
+paulipairforce_c.restype = ct.c_float
+
+paulipairgorce_c = pauli.pair_gorce
+paulipairgorce_c.argtypes = [ct.c_float, ct.c_float, ct.c_float]
+paulipairgorce_c.restype = ct.c_float
+
+paulipairenergy_c = pauli.pair_energ
+paulipairenergy_c.argtypes = [ct.c_float, ct.c_float, ct.c_float]
+paulipairenergy_c.restype = ct.c_float
+
+class Pauli(Interaction):
+  """
+  Pauli potential
+  """
+  def __init__(self, scut, D, qo, po, shift_style='None'):
+    self.D = D
+    self.qo = qo
+    self.po = po
+    self.scut = scut
+    self.shift_style = shift_style
+    super().__init__()
+
+  def forces(self, x, p, pairs=None):
+    """
+    Calculate Pauli 'forces' (derivatives)
+    """
+    energ = 0
+    force = np.zeros_like(x, dtype=np.float32)
+    if pairs is None:
+      pairs = np.array(list(it.combinations(range(len(x)), 2)), dtype=np.int64)
+    xp = x.ctypes.data_as(ct.c_voidp)
+    pp = p.ctypes.data_as(ct.c_voidp)
+    pairsp = pairs.ctypes.data_as(ct.c_voidp)
+    forcep = force.ctypes.data_as(ct.c_voidp)
+    energ = pauliforces_c(xp, pp, pairsp, len(pairs), self.D, self.qo, self.po, self.scut, forcep)
+    return force, energ
+
+  def gorces(self, x, p, pairs=None):
+    """
+    Calculate Pauli 'forces' (derivatives)
+    """
+    energ = 0
+    gorce = np.zeros_like(x, dtype=np.float32)
+    if pairs is None:
+      pairs = np.array(list(it.combinations(range(len(x)), 2)), dtype=np.int64)
+    xp = x.ctypes.data_as(ct.c_voidp)
+    pp = p.ctypes.data_as(ct.c_voidp)
+    pairsp = pairs.ctypes.data_as(ct.c_voidp)
+    gorcep = gorce.ctypes.data_as(ct.c_voidp)
+    energ = pauligorces_c(xp, pp, pairsp, len(pairs), self.D, self.qo, self.po, self.scut, gorcep)
+    return gorce, energ
+
+  def pair_force(self, q1, p1, q2, p2):
+    q = np.linalg.norm(q1-q2)
+    p = np.linalg.norm(p1-p2)
+    s2 = q**2/self.qo**2 + p**2/self.po**2
+    if s2 > (self.scut)**2:
+      return np.zeros_like(q1)
+    pf = paulipairforce_c(s2, self.D, self.qo**2)*(q1-q2)
+    if self.shift_style == 'None':
+      return pf
+    elif self.shift_style == 'Displace':
+      return pf
+
+  def pair_gorce(self, q1, p1, q2, p2):
+    q = np.linalg.norm(q1-q2)
+    p = np.linalg.norm(p1-p2)
+    s2 = q**2/self.qo**2 + p**2/self.po**2
+    if s2 > self.scut**2:
+      return np.zeros_like(q1)
+    pg = paulipairgorce_c(s2, self.D, self.po**2)*(p1-p2)
+    if self.shift_style == 'None':
+      return pg
+    elif self.shift_style == 'Displace':
+      return pg
+
+  def pair_energ(self, q1, p1, q2, p2):
+    q = np.linalg.norm(q1-q2)
+    p = np.linalg.norm(p1-p2)
+    s2 = q**2/self.qo**2 + p**2/self.po**2
+    if s2 > self.scut**2:
+      return 0
+    if self.shift_style == 'None':
+      vcut = 0
+    elif self.shift_style == 'Displace':
+      vcut = paulipairenergy_c(self.scut**2, 0, self.D)
+    energy = paulipairenergy_c(s2, vcut, self.D)
+    return energy

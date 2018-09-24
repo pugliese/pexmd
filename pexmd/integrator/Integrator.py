@@ -37,6 +37,13 @@ class VelVerlet(NVE):
     v = v + 0.5*a*self.dt
     return x, v
 
+class Euler(Integrator):
+
+  def step(self, x, v, gorces, a):
+    x = x + (v - gorces)*self.dt
+    v = v + a*self.dt
+    return x, v
+
 class NVT(Integrator):
   """
   NVT base class

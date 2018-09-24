@@ -5,14 +5,14 @@
 
 float pair_energ(float r, float energy_cut, float req, float D, float alpha){
 
-  float mexp = exp(-alpha*(r-req));
+  double mexp = exp(-alpha*(r-req));
   return D*(1-mexp)*(1-mexp) - energy_cut;
 
 }
 
 float pair_force(float r, float req, float D, float alpha){
 
-  float mexp = exp(-alpha*(r-req));
+  double mexp = exp(-alpha*(r-req));
   return -2*D*alpha*(1-mexp)*mexp/r;
 
 }

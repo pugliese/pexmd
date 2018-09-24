@@ -92,6 +92,10 @@ class Base(object):
     return self._f/self._mass[:, np.newaxis]
 
   @property
+  def p(self):
+    return self.v * self._mass[:, np.newaxis]
+
+  @property
   def t(self):
     return self._t
 
