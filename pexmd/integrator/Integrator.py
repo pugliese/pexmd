@@ -44,6 +44,19 @@ class Euler(Integrator):
     v = v + a*self.dt
     return x, v
 
+class RK2(Integrator):
+
+  def first_step(self, x, v, gorces, a):
+    x = x + (v - gorces)*self.dt/2
+    v = v + a*self.dt/2
+    return x, v
+
+  def last_step(self, x, v, gorces, a):
+    x = x + (v - gorces)*self.dt
+    v = v + a*self.dt
+    return x, v
+
+
 class NVT(Integrator):
   """
   NVT base class
