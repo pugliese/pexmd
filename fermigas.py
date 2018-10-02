@@ -3,6 +3,17 @@ import pexmd
 import matplotlib.pylab as plt
 import sys
 import itertools as it
+import time
+
+def FixedPoint(parts, interact, integ, Niter = 5):
+  Z_x = parts.x
+  Z_v = parts.v
+  for k in range(Niter):
+    forces, e = pauli.forces(Z_x, parts.mass[0]*Z_v)
+    gorces, e = pauli.gorces(Z_x, parts.mass[0]*Z_v)
+    Z_x = parts.x + .5*integ.dt*(Z_v - gorces)
+    Z_v = parts.v + .5*integ.dt*(forces + 5*(2 - Z_x))/parts.mass[0]
+  return 2*Z_x - parts.x, 2*Z_v - parts.v
 
 def particulas(Npart,L):
   x = np.zeros((Npart,3), dtype=np.float32)
@@ -44,11 +55,21 @@ def avanzar(parts, pauli, integ, bx, therm):
   rmax = max([sum((parts.x[i,:]-2)**2) for i in range(len(parts.x[:,0]))])
   return parts.x, parts.v, e, ecaja, np.sqrt(rmax)
 
+def avanzar_fp(parts, pauli, integ, bx, therm):
+  #gorces, e = pauli.gorces(parts.x, parts.p)
+  parts.x, parts.v = FixedPoint(parts, pauli, integ, 10)
+  force_aux, ecaja = fuerzas_caja(parts.x, 4, 5)
+  parts.f, e = pauli.forces(parts.x, parts.p)
+  #parts.x, parts.v = bx.wrap_boundary(parts.x, parts.v)
+  #parts.v = therm.step(parts.v, parts.mass)
+  rmax = max([sum((parts.x[i,:]-2)**2) for i in range(len(parts.x[:,0]))])
+  return parts.x, parts.v, e, ecaja, np.sqrt(rmax)
+
 # Interaction
 qo = 1.664
 po = 120
 h_barra = 196.727394
-D = -207*(h_barra/(po*qo))**3
+D = 207*(h_barra/(po*qo))**3
 scut = 20
 pauli = pexmd.interaction.Pauli(scut, D, qo, po)
 # Box
@@ -66,26 +87,29 @@ parts.x = particulas(Npart, L)
 parts.v = np.random.normal(0,np.sqrt(To*1.5), (Npart,3))
 parts.mass = m
 # Integrator
-h = 0.00005
+h = 0.001
 integ = pexmd.integrator.Euler(h)
 
-Nterm = 100000
+Nterm = 2000
 Epot = np.zeros(Nterm)
 Epotcaja = np.zeros(Nterm)
 Ecin = np.zeros(Nterm)
 rmax = np.zeros(Nterm)
+t = time.time()
 for i in range(Nterm):
-  if (i%1000==0):
+  if (i%5000==0):
     print(i)
-  parts.x, parts.v, Epot[i], Epotcaja[i], rmax[i] = avanzar(parts, pauli, integ, bx, therm)
+  #parts.x, parts.v, Epot[i], Epotcaja[i], rmax[i] = avanzar(parts, pauli, integ, bx, therm)
+  parts.x, parts.v, Epot[i], Epotcaja[i], rmax[i] = avanzar_fp(parts, pauli, integ, bx, therm)
   Ecin[i] = energia_cinetica(parts.v, parts.mass)
 T = Ecin/(1.5*Npart)
-
+t = time.time() - t
+print("%d min, %d segs" %(t/60, t%60))
 plt.figure()
 plt.plot(rmax)
 plt.figure()
 plt.plot(Ecin, 'r')
 plt.plot(Epot, 'b')
 plt.plot(Epotcaja, 'b--')
-plt.plot(Ecin+Epot+Epotcaja, 'g')
+plt.plot(Ecin+Epot+Epotcaja, 'k')
 plt.show()
