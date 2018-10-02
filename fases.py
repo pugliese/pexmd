@@ -5,8 +5,8 @@ import matplotlib.pylab as plt
 import pexmd
 
 # Interaction
-qo = 1
 po = 1
+qo = 1
 scut = 200
 D = 10000
 pauli = pexmd.interaction.Pauli(scut, D, qo, po)

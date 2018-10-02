@@ -1,8 +1,8 @@
 .PHONY: all clean
 CC = gcc
 LD = gcc
-LD_FLAGS = -shared
-C_FLAGS = -g -O3 -fPIC -std=gnu99
+LD_FLAGS = -shared 
+C_FLAGS = -g -Ofast -fPIC -std=gnu99 
 
 
 all: lj.so morse.so pauli.so
