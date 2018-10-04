@@ -3,18 +3,29 @@ import time
 import numpy as np
 import matplotlib.pylab as plt
 import pexmd
+import itertools as it
+import time
 
 # Interaction
-po = 1
-qo = 1
 scut = 200
-D = 10000
+opcion = 1
+if (opcion==1):
+  po = 1
+  qo = 1
+  D = 10000
+  Nstep = 20000
+else:
+  qo = 1.664
+  po = 120
+  h_barra = 196.727394
+  D = 207*(h_barra/(po*qo))**3
+  Nstep = 5000
 pauli = pexmd.interaction.Pauli(scut, D, qo, po)
 # Particles
 m = 1
 parts = pexmd.particles.PointParticles(2)
-parts.x = np.array([[5.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
-parts.v = np.array([[-2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+parts.x = np.array([[6.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+parts.v = np.array([[-4.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
 parts.mass = m
 # Integrator
 h = 0.0001
@@ -24,52 +35,95 @@ integ = pexmd.integrator.Euler(h)
 # Neighbour list
 
 if (sys.argv[1] == "e"):
-  Nstep = 30000
+  h = 0.0001
+  if (len(sys.argv)==3):
+    Nstep = int(Nstep*h/float(sys.argv[2]))
+    h = float(sys.argv[2])
+  integ = pexmd.integrator.Euler(h)
   q = np.zeros(Nstep+1)
   p = np.zeros(Nstep+1)
-  fuerzas = np.zeros(Nstep+1)
-  guerzas = np.zeros(Nstep+1)
-  pot = np.zeros(Nstep+1)
-  Ecin = np.zeros(Nstep+1)
+  pot = np.zeros(Nstep)
+  Ecin = np.zeros(Nstep)
   q[0] = parts.x[0, 0] - parts.x[1, 0]
   p[0] = parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])
   for i in range(Nstep):
-    parts.f, pot[i+1] = pauli.forces(parts.x, parts.p)
-    gorces, pot[i+1] = pauli.gorces(parts.x, parts.p)
+    parts.f, pot[i] = pauli.forces(parts.x, parts.p)
+    gorces, pot[i] = pauli.gorces(parts.x, parts.p)
     parts.x, parts.v = integ.step(parts.x, parts.v, gorces, parts.a)
     q[i+1] = parts.x[0, 0] - parts.x[1, 0]
     p[i+1] = parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])
-    Ecin[i+1] = (parts.v[0, 0]**2 + parts.v[1, 0]**2)/2
-    fuerzas[i+1] = parts.f[0, 0]
-    guerzas[i+1] = gorces[0, 0]
+    Ecin[i] = (parts.v[0, 0]**2 + parts.v[1, 0]**2)/2
 
+  e_std = np.std(Ecin+pot)
+  e_mean = np.mean(Ecin+pot)
+  print(e_mean, e_std, e_std/e_mean)
   plt.figure()
   plt.plot(q, p)
-  #plt.figure()
-  #plt.plot(fuerzas)
-  #plt.figure()
-  #plt.plot(guerzas)
+  plt.xlabel(r"$\Delta q$")
+  plt.ylabel(r"$\Delta p$")
   plt.figure()
   plt.plot(Ecin, "r-")
   plt.plot(pot, "b-")
   plt.plot(Ecin+pot, "k-")
+  plt.xlabel("Paso")
   plt.title("Energia")
+  plt.legend(["Cinetica", "Potencial", "Total"], loc=6)
+  plt.show()
+
+
+if (sys.argv[1] == "erk"):
+  h = 0.0001
+  if (len(sys.argv)==3):
+    Nstep = int(Nstep*h/float(sys.argv[2]))
+    h = float(sys.argv[2])
+  integ = pexmd.integrator.RK2(h)
+  q = np.zeros(Nstep+1)
+  p = np.zeros(Nstep+1)
+  pot = np.zeros(Nstep)
+  Ecin = np.zeros(Nstep)
+  q[0] = parts.x[0, 0] - parts.x[1, 0]
+  p[0] = parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])
+  for i in range(Nstep):
+    parts.f, pot[i] = pauli.forces(parts.x, parts.p)
+    gorces, pot[i] = pauli.gorces(parts.x, parts.p)
+    x_temp, v_temp = integ.first_step(parts.x, parts.v, gorces, parts.a)
+    parts.f, pot[i] = pauli.forces(x_temp, v_temp)
+    gorces, pot[i] = pauli.gorces(x_temp, parts.mass[0]*v_temp)
+    parts.x, parts.v = integ.last_step(parts.x, parts.v, gorces, parts.a)
+    q[i+1] = parts.x[0, 0] - parts.x[1, 0]
+    p[i+1] = parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])
+    Ecin[i] = (parts.v[0, 0]**2 + parts.v[1, 0]**2)/2
+
+  e_std = np.std(Ecin+pot)
+  e_mean = np.mean(Ecin+pot)
+  print(e_mean, e_std, e_std/e_mean)
+  plt.figure()
+  plt.plot(q, p)
+  plt.xlabel(r"$\Delta q$")
+  plt.ylabel(r"$\Delta p$")
+  plt.figure()
+  plt.plot(Ecin, "r-")
+  plt.plot(pot, "b-")
+  plt.plot(Ecin+pot, "k-")
+  plt.xlabel("Paso")
+  plt.title("Energia")
+  plt.legend(["Cinetica", "Potencial", "Total"], loc=6)
   plt.show()
 
 def trayectoria(qi, pi, pauli, integ, parts):
-      assert(pi*qi<=0)
-      parts.x = np.array([[qi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
-      parts.v = np.array([[pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
-      q = [parts.x[0, 0] - parts.x[1, 0]]
-      p = [parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
-      while (abs(q[-1])<=abs(qi) and abs(p[-1])<=abs(pi)):
-        parts.f, e = pauli.forces(parts.x, parts.p)
-        gorces, e = pauli.gorces(parts.x, parts.p)
-        parts.x, parts.v = integ.step(parts.x, parts.v, gorces, parts.a)
-        q.append(parts.x[0, 0] - parts.x[1, 0])
-        p.append(parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0]))
-      reboto = (0<q[-1]*qi)
-      return q, p, reboto
+  assert(pi*qi<=0)
+  parts.x = np.array([[qi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+  parts.v = np.array([[pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+  q = [parts.x[0, 0] - parts.x[1, 0]]
+  p = [parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
+  while (abs(q[-1]) <= abs(qi) and abs(p[-1]) <= abs(pi)):
+    parts.f, e = pauli.forces(parts.x, parts.p)
+    gorces, e = pauli.gorces(parts.x, parts.p)
+    parts.x, parts.v = integ.step(parts.x, parts.v, gorces, parts.a)
+    q.append(parts.x[0, 0] - parts.x[1, 0])
+    p.append(parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0]))
+  reboto = (0<q[-1]*qi)
+  return q, p, reboto
 
 if (sys.argv[1] == "f"):
   Nq = 49
@@ -130,7 +184,7 @@ def trayectoria_rk(qi, pi, pauli, integ, parts):
   reboto = (0<q[-1]*qi)
   return q, p, reboto
 
-if (sys.argv[1] == "rk"):
+if (sys.argv[1] == "frk"):
   h = 0.0001
   integ = pexmd.integrator.RK2(h)
   Nq = 25
@@ -171,14 +225,14 @@ if (sys.argv[1] == "rk"):
   plt.title("Espacio de fases")
   plt.show()
 
-def FixedPoint(parts, interact, integ, Niter = 5):
+def FixedPoint(parts, interact, dt, Niter = 5):
   Z_x = parts.x
   Z_v = parts.v
   for k in range(Niter):
     forces, e = pauli.forces(Z_x, parts.mass[0]*Z_v)
     gorces, e = pauli.gorces(Z_x, parts.mass[0]*Z_v)
-    Z_x = parts.x + .5*integ.dt*(Z_v - gorces)
-    Z_v = parts.v + .5*integ.dt*forces/parts.mass[0]
+    Z_x = parts.x + .5*dt*(Z_v - gorces)
+    Z_v = parts.v + .5*dt*forces/parts.mass[0]
   return 2*Z_x - parts.x, 2*Z_v - parts.v
 
 def trayectoria_fp(qi, pi, pauli, integ, parts):
@@ -187,7 +241,7 @@ def trayectoria_fp(qi, pi, pauli, integ, parts):
   parts.v = np.array([[pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   q = [parts.x[0, 0] - parts.x[1, 0]]
   p = [parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
-  while (abs(q[-1])<=6 and abs(p[-1])<=10):
+  while (abs(q[-1])<=abs(qi) and abs(p[-1])<=abs(pi)):
     parts.x, parts.v = FixedPoint(parts, pauli, integ)
     q.append(parts.x[0, 0] - parts.x[1, 0])
     p.append(parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0]))
@@ -195,26 +249,29 @@ def trayectoria_fp(qi, pi, pauli, integ, parts):
   return q, p, reboto
 
 if (sys.argv[1] == "fp"):
-  h = 0.001
+  h = 0.0001
   integ = pexmd.integrator.RK2(h)
   Nq = 25
   if (3<=len(sys.argv)):
     Nq = int(sys.argv[2])
-  po = np.linspace(-6, 0, Nq)
+  qo = 6
+  pmax = 30
+  pmin = 20
+  po = np.linspace(-pmax, -pmin, Nq)
   fasesq = []
   fasesp = []
   energia = []
   for pi in po:
     t = time.time()
-    q, p, r = trayectoria_fp(5, pi, pauli, integ, parts)
+    q, p, r = trayectoria_fp(qo, pi, pauli, h, parts)
     fasesq.append(q)
     fasesp.append(p)
     t = time.time()-t
     print(pi, ":", t)
-  po = np.linspace(0, 6, Nq)
+  po = np.linspace(pmin, pmax, Nq)
   for pi in po:
     t = time.time()
-    q, p, r = trayectoria_fp(-5, pi, pauli, integ, parts)
+    q, p, r = trayectoria_fp(-qo, pi, pauli, h, parts)
     fasesq.append(q)
     fasesp.append(p)
     t = time.time()-t
@@ -236,41 +293,44 @@ if (sys.argv[1] == "fp"):
     plt.plot(fasesq[i], fasesp[i], "b-")
   plt.xlabel(r"$\Delta q$")
   plt.ylabel(r"$\Delta p$")
-  plt.axis([-5,5,-6, 6])
+  plt.axis([-qo, qo, -pmax, pmax])
   plt.title("Espacio de fases")
   plt.show()
 
 if (sys.argv[1] == "efp"):
   h = 0.0001
-  integ = pexmd.integrator.Euler(h)
-  Nstep = 15000
+  if (len(sys.argv)==3):
+    Nstep = int(Nstep*h/float(sys.argv[2]))
+    h = float(sys.argv[2])
   q = np.zeros(Nstep+1)
   p = np.zeros(Nstep+1)
-  fuerzas = np.zeros(Nstep+1)
-  guerzas = np.zeros(Nstep+1)
-  pot = np.zeros(Nstep+1)
-  Ecin = np.zeros(Nstep+1)
+  pot = np.zeros(Nstep)
+  Ecin = np.zeros(Nstep)
   q[0] = parts.x[0, 0] - parts.x[1, 0]
   p[0] = parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])
   t = time.time()
   for i in range(Nstep):
-    parts.x, parts.v = FixedPoint(parts, pauli, integ, 5)
-    parts.f, pot[i+1] = pauli.forces(parts.x, parts.p)
+    parts.x, parts.v = FixedPoint(parts, pauli, h, 5)
+    parts.f, pot[i] = pauli.forces(parts.x, parts.p)
     q[i+1] = parts.x[0, 0] - parts.x[1, 0]
     p[i+1] = parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])
-    Ecin[i+1] = (parts.v[0, 0]**2 + parts.v[1, 0]**2)/2
-    fuerzas[i+1] = parts.f[0, 0]
-    #guerzas[i+1] = gorces[0, 0]
+    Ecin[i] = (parts.v[0, 0]**2 + parts.v[1, 0]**2)/2
   t = time.time() - t
   print(t)
-  print(np.mean(Ecin+pot), np.std(Ecin+pot))
+  e_std = np.std(Ecin+pot)
+  e_mean = np.mean(Ecin+pot)
+  print(e_mean, e_std, e_std/e_mean)
   plt.figure()
   plt.plot(q, p)
+  plt.xlabel(r"$\Delta q$")
+  plt.ylabel(r"$\Delta p$")
   plt.figure()
   plt.plot(Ecin, "r-")
   plt.plot(pot, "b-")
   plt.plot(Ecin+pot, "k-")
+  plt.xlabel("Paso")
   plt.title("Energia")
+  plt.legend(["Cinetica", "Potencial", "Total"], loc=6)
   plt.show()
 
 def lado(x, y):
@@ -353,48 +413,46 @@ def areas_qp(qp, D = 0.6, N = 10):
     i += 1
   return res
 
-
-if (sys.argv[1] == "3"):
-  parts = pexmd.particles.PointParticles(3)
+if (sys.argv[1] == "vs"):
+  Niter = 10000
+  # Interaction
+  po = 1
+  qo = 1
+  scut = 200
+  D = 10000
+  pauli = pexmd.interaction.Pauli(scut, D, qo, po)
+  # Particles
+  def particulas(Npart,L):
+    x = np.zeros((Npart,3), dtype=np.float32)
+    n3 = int(np.ceil(Npart**(1.0/3)))
+    i = 0
+    for p in it.product(range(n3),range(n3),range(n3)):
+      if Npart <= i:
+        break
+      x[i, :] = np.array(p)*L/n3
+      i += 1
+    return x
+  Npart = 1000
+  m = 1
+  parts = pexmd.particles.PointParticles(Npart)
+  parts.x = particulas(Npart, 5)
   parts.mass = m
-  parts.x = np.array([[5.0, 0.0, 0.0], [0.0, 0.0, 0.0], [-5.0, 0.0, 0.0]], dtype = np.float32)
-  parts.v = np.array([[-2.0, 0.0, 0.0], [0.0, 0.0, 0.0], [2.0, 0.0, 0.0]], dtype = np.float32)
-  Nstep = 30000
-  pot = np.zeros(Nstep+1)
-  Ecin = np.zeros(Nstep+1)
-  for i in range(Nstep):
-    parts.f, pot[i+1] = pauli.forces(parts.x, parts.p)
-    gorces, pot[i+1] = pauli.gorces(parts.x, parts.p)
-    parts.x, parts.v = integ.step(parts.x, parts.v, gorces, parts.a)
-    Ecin[i+1] = (parts.v[0, 0]**2 + parts.v[1, 0]**2 + parts.v[2, 0]**2)/2
+  pairs = np.array(list(it.combinations(range(Npart), 2)), dtype=np.int64)
 
-  plt.figure()
-  plt.plot(Ecin, "r-")
-  plt.plot(pot, "b-")
-  plt.plot(Ecin+pot, "k-")
-  plt.title("Energia")
-  plt.show()
-
-
-if (sys.argv[1] == "3fp"):
-  parts = pexmd.particles.PointParticles(3)
-  parts.mass = m
-  parts.x = np.array([[5.0, 0.0, 0.0], [0.0, 0.0, 0.0], [-5.0, 0.0, 0.0]], dtype = np.float32)
-  parts.v = np.array([[-2.0, 0.0, 0.0], [0.0, 0.0, 0.0], [2.0, 0.0, 0.0]], dtype = np.float32)
-  Nstep = 30000
-  pot = np.zeros(Nstep+1)
-  Ecin = np.zeros(Nstep+1)
-  t = time.time()
-  for i in range(Nstep):
-    parts.x, parts.v = FixedPoint(parts, pauli, integ, 5)
-    parts.f, pot[i+1] = pauli.forces(parts.x, parts.p)
-    Ecin[i+1] = (parts.v[0, 0]**2 + parts.v[1, 0]**2 + parts.v[2, 0]**2)/2
-  t = time.time() - t
-  print(t)
-  print(np.mean(Ecin+pot), np.std(Ecin+pot))
-  plt.figure()
-  plt.plot(Ecin, "r-")
-  plt.plot(pot, "b-")
-  plt.plot(Ecin+pot, "k-")
-  plt.title("Energia")
-  plt.show()
+  forces1, gorces1, e1 = pauli.fgorces(parts.x, parts.v, pairs)
+  forces2, e2 = pauli.forces(parts.x, parts.v, pairs)
+  gorces2, e3 = pauli.gorces(parts.x, parts.v, pairs)
+  assert(np.std(forces1-forces2) < 1E-6)
+  assert(np.std(gorces1-gorces2) < 1E-6)
+  assert(e1==e2)
+  assert(e2==e3)
+  t1 = time.time()
+  for i in range(Niter):
+    forces1, gorces1, e1 = pauli.fgorces(parts.x, parts.v, pairs)
+  t1 = time.time() - t1
+  t2 = time.time()
+  for i in range(Niter):
+    forces2, e2 = pauli.forces(parts.x, parts.v, pairs)
+    gorces2, e3 = pauli.gorces(parts.x, parts.v, pairs)
+  t2 = time.time() - t2
+  print(t1, t2, t2/t1, t1/t2)

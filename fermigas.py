@@ -5,12 +5,13 @@ import sys
 import itertools as it
 import time
 
-def FixedPoint(parts, interact, dt, caja, Niter = 3):
+def FixedPoint(parts, pairs, pauli, dt, caja, Niter = 3):
   Z_x = parts.x
   Z_v = parts.v
   for k in range(Niter):
-    forces, e = pauli.forces(Z_x, parts.mass[0]*Z_v)
-    gorces, e = pauli.gorces(Z_x, parts.mass[0]*Z_v)
+    forces, e = pauli.forces(Z_x, parts.mass[0]*Z_v, pairs)
+    gorces, e = pauli.gorces(Z_x, parts.mass[0]*Z_v, pairs)
+    #forces, gorces, e = pauli.fgorces(Z_x, parts.mass[0]*Z_v, pairs)
     fuerza_aux, ecaja = caja(Z_x)
     Z_x = parts.x + .5*dt*(Z_v - gorces)
     Z_v = parts.v + .5*dt*(forces+fuerza_aux)/parts.mass[0]
@@ -39,11 +40,11 @@ def fuerzas_caja(x, L, V, k = 20):
   epot = sum(sum((0.5*L - x)**k))*V/k
   return fuerzas, epot
 
-def avanzar_fp(parts, pauli, integ, caja, therm):
-  parts.x, parts.v = FixedPoint(parts, pauli, integ.dt, caja, 5)
+def avanzar_fp(parts, pairs, pauli, integ, caja, therm):
+  parts.x, parts.v = FixedPoint(parts, pairs, pauli, integ.dt, caja, 5)
 
   parts.f, ecaja = caja(parts.x)
-  gorces, e = pauli.gorces(parts.x, parts.p)
+  gorces, e = pauli.gorces(parts.x, parts.p, pairs)
 
   #parts.x, parts.v = bx.wrap_boundary(parts.x, parts.v)
   parts.v = therm.step(parts.v, parts.mass)
@@ -64,7 +65,7 @@ bx = pexmd.box.Box(np.zeros(3), L*np.ones(3), 'Fixed')
 # Thermostat
 Q = 0.02
 To = np.concatenate((np.linspace(8, 2, 4), np.linspace(1.0, 0.2, 5)))
-therm = pexmd.thermostat.Andersen(To[0], Q)
+therm = pexmd.thermostat.Andersen(To[0], 0)
 # Particles
 Npart = 50#30
 m = 0.5109989461
@@ -72,6 +73,7 @@ parts = pexmd.particles.PointParticles(Npart)
 parts.x = particulas(Npart, L)
 parts.v = np.random.normal(0,np.sqrt(To[0]*1.5), (Npart,3))
 parts.mass = m
+pairs = np.array(list(it.combinations(range(Npart), 2)), dtype=np.int64)
 # Integrator
 h = 0.0005
 integ = pexmd.integrator.VelVerlet(h)
@@ -89,12 +91,12 @@ t = time.time()
 i = 0
 print("Termalizacion inicial")
 for k in range(Nterm):
-  parts.x, parts.v, a, b, c, d = avanzar_fp(parts, pauli, integ, bx, therm)
+  parts.x, parts.v, a, b, c, d = avanzar_fp(parts, pairs, pauli, integ, bx, therm)
 for j in range(Ntemp):
   therm = pexmd.thermostat.Andersen(To[j], 0)
   print("Temperatura:", To[j])
   for k in range(Nterm):
-    parts.x, parts.v, Epot[i], Epotcaja[i], rmax[i], Tcorr[i] = avanzar_fp(parts, pauli, integ, bx, therm)
+    parts.x, parts.v, Epot[i], Epotcaja[i], rmax[i], Tcorr[i] = avanzar_fp(parts, pairs, pauli, integ, bx, therm)
     Ecin[i] = energia_cinetica(parts.v, parts.mass)
     i += 1
   parts.v = parts.v*np.sqrt(1.5*To[j]*Npart/Ecin[i-1])

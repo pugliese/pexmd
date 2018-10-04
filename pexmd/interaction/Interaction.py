@@ -192,6 +192,11 @@ pauligorces_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.
                        ct.c_float, ct.c_float, ct.c_float, ct.c_voidp]
 pauligorces_c.restype = ct.c_float
 
+paulifgorces_c = pauli.fgorces
+paulifgorces_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.c_float,
+                       ct.c_float, ct.c_float, ct.c_float, ct.c_voidp, ct.c_voidp]
+paulifgorces_c.restype = ct.c_float
+
 paulipairforce_c = pauli.pair_force
 paulipairforce_c.argtypes = [ct.c_float, ct.c_float, ct.c_float]
 paulipairforce_c.restype = ct.c_float
@@ -245,6 +250,23 @@ class Pauli(Interaction):
     gorcep = gorce.ctypes.data_as(ct.c_voidp)
     energ = pauligorces_c(xp, pp, pairsp, len(pairs), self.D, self.qo, self.po, self.scut, gorcep)
     return gorce, energ
+
+  def fgorces(self, x, p, pairs=None):
+    """
+    Calculate Pauli 'forces' (derivatives)
+    """
+    energ = 0
+    force = np.zeros_like(x, dtype=np.float32)
+    gorce = np.zeros_like(x, dtype=np.float32)
+    if pairs is None:
+      pairs = np.array(list(it.combinations(range(len(x)), 2)), dtype=np.int64)
+    xp = x.ctypes.data_as(ct.c_voidp)
+    pp = p.ctypes.data_as(ct.c_voidp)
+    pairsp = pairs.ctypes.data_as(ct.c_voidp)
+    forcep = force.ctypes.data_as(ct.c_voidp)
+    gorcep = gorce.ctypes.data_as(ct.c_voidp)
+    energ = paulifgorces_c(xp, pp, pairsp, len(pairs), self.D, self.qo, self.po, self.scut, forcep, gorcep)
+    return force, gorce, energ
 
   def pair_force(self, q1, p1, q2, p2):
     q = np.linalg.norm(q1-q2)

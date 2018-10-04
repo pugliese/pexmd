@@ -13,4 +13,6 @@ float forces(float *x, float *p, long int* pairs, long int npairs,
 float gorces(float *x, float *p, long int* pairs, long int npairs,
           float D, float qo, float po, float scut, float *gorce);
 
+float fgorces(float *x, float *p, long int* pairs, long int npairs,
+          float D, float qo, float po, float scut, float *force, float *gorce);
 #endif
