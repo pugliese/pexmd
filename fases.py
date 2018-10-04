@@ -10,8 +10,8 @@ import time
 scut = 200
 opcion = 1
 if (opcion==1):
-  po = 1
-  qo = 1
+  po = 1000
+  qo = 1000
   D = 10000
   Nstep = 20000
 else:
@@ -229,8 +229,9 @@ def FixedPoint(parts, interact, dt, Niter = 5):
   Z_x = parts.x
   Z_v = parts.v
   for k in range(Niter):
-    forces, e = pauli.forces(Z_x, parts.mass[0]*Z_v)
-    gorces, e = pauli.gorces(Z_x, parts.mass[0]*Z_v)
+    #forces, e = pauli.forces(Z_x, parts.mass[0]*Z_v)
+    #gorces, e = pauli.gorces(Z_x, parts.mass[0]*Z_v)
+    forces, gorces, e = pauli.fgorces(Z_x, parts.mass[0]*Z_v)
     Z_x = parts.x + .5*dt*(Z_v - gorces)
     Z_v = parts.v + .5*dt*forces/parts.mass[0]
   return 2*Z_x - parts.x, 2*Z_v - parts.v
@@ -241,7 +242,7 @@ def trayectoria_fp(qi, pi, pauli, integ, parts):
   parts.v = np.array([[pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   q = [parts.x[0, 0] - parts.x[1, 0]]
   p = [parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
-  while (abs(q[-1])<=abs(qi) and abs(p[-1])<=abs(pi)):
+  while (abs(q[-1])<=abs(qi)*1.05 and abs(p[-1])<=abs(pi)*1.05):
     parts.x, parts.v = FixedPoint(parts, pauli, integ)
     q.append(parts.x[0, 0] - parts.x[1, 0])
     p.append(parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0]))
@@ -249,29 +250,31 @@ def trayectoria_fp(qi, pi, pauli, integ, parts):
   return q, p, reboto
 
 if (sys.argv[1] == "fp"):
-  h = 0.0001
+  h = 0.001
   integ = pexmd.integrator.RK2(h)
   Nq = 25
   if (3<=len(sys.argv)):
     Nq = int(sys.argv[2])
-  qo = 6
-  pmax = 30
-  pmin = 20
-  po = np.linspace(-pmax, -pmin, Nq)
+  qinit = 5*qo
+  pmax = 6*po
+  pmin = 0
+  pinits = np.linspace(-pmax, -pmin, Nq)
+  pinits = np.array(pinits, dtype = np.float32)
   fasesq = []
   fasesp = []
   energia = []
-  for pi in po:
+  for pi in pinits:
     t = time.time()
-    q, p, r = trayectoria_fp(qo, pi, pauli, h, parts)
+    q, p, r = trayectoria_fp(qinit, pi, pauli, h, parts)
     fasesq.append(q)
     fasesp.append(p)
     t = time.time()-t
     print(pi, ":", t)
-  po = np.linspace(pmin, pmax, Nq)
-  for pi in po:
+  pinits = np.linspace(pmin, pmax, Nq)
+  pinits = np.array(pinits, dtype = np.float32)
+  for pi in pinits:
     t = time.time()
-    q, p, r = trayectoria_fp(-qo, pi, pauli, h, parts)
+    q, p, r = trayectoria_fp(-qinit, pi, pauli, h, parts)
     fasesq.append(q)
     fasesp.append(p)
     t = time.time()-t
@@ -293,8 +296,9 @@ if (sys.argv[1] == "fp"):
     plt.plot(fasesq[i], fasesp[i], "b-")
   plt.xlabel(r"$\Delta q$")
   plt.ylabel(r"$\Delta p$")
-  plt.axis([-qo, qo, -pmax, pmax])
+  plt.axis([-qinit, qinit, -pmax, pmax])
   plt.title("Espacio de fases")
+  plt.savefig("fases_{0}_{1}.png".format(po, qo))
   plt.show()
 
 if (sys.argv[1] == "efp"):
@@ -344,6 +348,56 @@ def lado(x, y):
     return y[i]
   else:
     return y[i]-x[i]*(y[i+1]-y[i])/(x[i+1]-x[i])
+
+def barrido(qo, po, tol=1E-2, N=10):
+  pauli = pexmd.interaction.Pauli(200, 10000, qo, po)
+  parts = pexmd.particles.PointParticles(2)
+  parts.x = np.array([[2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+  parts.v = np.array([[-2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+  parts.mass = 1
+  h = 0.001
+  integ = pexmd.integrator.Euler(h)
+
+  qinit = 5*qo
+  pinf = 0    # Trayectoria que rebota
+  psup = -3*po   # Trayectoria que no rebota
+  q, p, r = trayectoria_fp(qinit, psup, pauli, integ.dt, parts)
+  qs = []
+  ps = []
+  # Valores iniciales
+  while(r):
+    pinf = psup
+    psup = 2*psup
+    q, p, r = trayectoria_fp(qinit, psup, pauli, integ.dt, parts)
+    print(pinf)
+  pmax = abs(psup)
+  qs.append(q)
+  ps.append(p)
+  # Comienzo busqueda
+  #for i in range(N):
+  i = 0
+  while(abs(psup-pinf) > tol):
+    t = time.time()
+    pmed = (psup+pinf)/2
+    q, p, r = trayectoria_fp(qinit, pmed, pauli, integ.dt, parts)
+    qs.append(q)
+    ps.append(p)
+    if(r):
+      pinf = pmed
+    else:
+      psup = pmed
+    print(i, ')', abs(psup-pinf), ':', time.time()-t)
+    i += 1
+  plt.figure()
+  for i in range(len(qs)):
+    plt.plot(-np.array(qs[i]),-np.array(ps[i]), "b-")
+    plt.plot(qs[i],ps[i], "b-")
+  plt.xlabel(r'$\Delta q$')
+  plt.ylabel(r'$\Delta p$')
+  plt.axis([-qinit, qinit, -pmax, pmax])
+  plt.savefig("barrido_{0}_{1}.png".format(po, qo))
+  plt.show()
+  return pmed
 
 def area(D, qo = 1, po = 1, N = 10):
   pauli = pexmd.interaction.Pauli(200, D, qo, po)
