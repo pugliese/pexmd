@@ -10,17 +10,17 @@ import time
 scut = 200
 opcion = 1
 if (opcion==1):
-  po = 1000
-  qo = 1000
-  D = 10000
+  po = 0.1
+  qo = 0.5
+  DD = 1000
   Nstep = 20000
 else:
   qo = 1.664
   po = 120
   h_barra = 196.727394
-  D = 207*(h_barra/(po*qo))**3
+  DD = 207*(h_barra/(po*qo))**3
   Nstep = 5000
-pauli = pexmd.interaction.Pauli(scut, D, qo, po)
+pauli = pexmd.interaction.Pauli(scut, DD, qo, po)
 # Particles
 m = 1
 parts = pexmd.particles.PointParticles(2)
@@ -229,9 +229,9 @@ def FixedPoint(parts, interact, dt, Niter = 5):
   Z_x = parts.x
   Z_v = parts.v
   for k in range(Niter):
-    #forces, e = pauli.forces(Z_x, parts.mass[0]*Z_v)
-    #gorces, e = pauli.gorces(Z_x, parts.mass[0]*Z_v)
-    forces, gorces, e = pauli.fgorces(Z_x, parts.mass[0]*Z_v)
+    #forces, e = interact.forces(Z_x, parts.mass[0]*Z_v)
+    #gorces, e = interact.gorces(Z_x, parts.mass[0]*Z_v)
+    forces, gorces, e = interact.fgorces(Z_x, parts.mass[0]*Z_v)
     Z_x = parts.x + .5*dt*(Z_v - gorces)
     Z_v = parts.v + .5*dt*forces/parts.mass[0]
   return 2*Z_x - parts.x, 2*Z_v - parts.v
@@ -337,20 +337,20 @@ if (sys.argv[1] == "efp"):
   plt.legend(["Cinetica", "Potencial", "Total"], loc=6)
   plt.show()
 
-def lado(x, y):
-  n = len(x)
-  i = int(n/2)
-  while(0<i and 0<=x[i]):
-    i -= 1
-  while(i<n-1 and x[i]<=0):
-    i += 1
-  if (x[i] == 0 or i==n-1):
-    return y[i]
-  else:
-    return y[i]-x[i]*(y[i+1]-y[i])/(x[i+1]-x[i])
 
-def barrido(qo, po, tol=1E-2, N=10):
-  pauli = pexmd.interaction.Pauli(200, 10000, qo, po)
+def barrido_D(D, tol=1E-2):
+  filename = "barridoD_{0}.png".format(D)
+  print(filename)
+  return barrido(1, 1, filename, D, tol)
+
+def barrido_PC(P,C, tol=1E-2):
+  qo = np.sqrt(P*C)
+  po = np.sqrt(P/C)
+  filename = "barrido_{0}_{1}.png".format(qo*po, qo/po)
+  return barrido(qo, po, filename, 10000, tol)
+
+def barrido(qo, po, filename, D=10000, tol=1E-2, N=10):
+  pauli = pexmd.interaction.Pauli(200, D, qo, po)
   parts = pexmd.particles.PointParticles(2)
   parts.x = np.array([[2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   parts.v = np.array([[-2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
@@ -374,7 +374,6 @@ def barrido(qo, po, tol=1E-2, N=10):
   qs.append(q)
   ps.append(p)
   # Comienzo busqueda
-  #for i in range(N):
   i = 0
   while(abs(psup-pinf) > tol):
     t = time.time()
@@ -386,18 +385,30 @@ def barrido(qo, po, tol=1E-2, N=10):
       pinf = pmed
     else:
       psup = pmed
-    print(i, ')', abs(psup-pinf), ':', time.time()-t)
+    print("{0}) {1}: {2} segs".format(i, abs(psup-pinf), time.time()-t))
     i += 1
   plt.figure()
   for i in range(len(qs)):
-    plt.plot(-np.array(qs[i]),-np.array(ps[i]), "b-")
+    plt.plot(-np.array(qs[i]), -np.array(ps[i]), "b-")
     plt.plot(qs[i],ps[i], "b-")
   plt.xlabel(r'$\Delta q$')
   plt.ylabel(r'$\Delta p$')
   plt.axis([-qinit, qinit, -pmax, pmax])
-  plt.savefig("barrido_{0}_{1}.png".format(po, qo))
-  plt.show()
+  plt.savefig(filename)
+  plt.close()#plt.show()
   return pmed
+
+  def lado(x, y):
+    n = len(x)
+    i = int(n/2)
+    while(0<i and 0<=x[i]):
+      i -= 1
+      while(i<n-1 and x[i]<=0):
+        i += 1
+        if (x[i] == 0 or i==n-1):
+          return y[i]
+        else:
+          return y[i]-x[i]*(y[i+1]-y[i])/(x[i+1]-x[i])
 
 def area(D, qo = 1, po = 1, N = 10):
   pauli = pexmd.interaction.Pauli(200, D, qo, po)
