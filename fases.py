@@ -10,10 +10,10 @@ import time
 scut = 200
 opcion = 1
 if (opcion==1):
-  po = 0.1
-  qo = 0.5
-  DD = 1000
-  Nstep = 20000
+  po = 1
+  qo = 1
+  DD = 10000
+  Nstep = 2500
 else:
   qo = 1.664
   po = 120
@@ -236,14 +236,14 @@ def FixedPoint(parts, interact, dt, Niter = 5):
     Z_v = parts.v + .5*dt*forces/parts.mass[0]
   return 2*Z_x - parts.x, 2*Z_v - parts.v
 
-def trayectoria_fp(qi, pi, pauli, integ, parts):
+def trayectoria_fp(qi, pi, pauli, dt, parts):
   assert(pi*qi<=0)
   parts.x = np.array([[qi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   parts.v = np.array([[pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   q = [parts.x[0, 0] - parts.x[1, 0]]
   p = [parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
   while (abs(q[-1])<=abs(qi)*1.05 and abs(p[-1])<=abs(pi)*1.05):
-    parts.x, parts.v = FixedPoint(parts, pauli, integ)
+    parts.x, parts.v = FixedPoint(parts, pauli, dt)
     q.append(parts.x[0, 0] - parts.x[1, 0])
     p.append(parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0]))
   reboto = (0<q[-1]*qi)
@@ -302,7 +302,7 @@ if (sys.argv[1] == "fp"):
   plt.show()
 
 if (sys.argv[1] == "efp"):
-  h = 0.0001
+  h = 0.001
   if (len(sys.argv)==3):
     Nstep = int(Nstep*h/float(sys.argv[2]))
     h = float(sys.argv[2])
@@ -310,6 +310,7 @@ if (sys.argv[1] == "efp"):
   p = np.zeros(Nstep+1)
   pot = np.zeros(Nstep)
   Ecin = np.zeros(Nstep)
+  rho = np.zeros(Nstep)
   q[0] = parts.x[0, 0] - parts.x[1, 0]
   p[0] = parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])
   t = time.time()
@@ -318,6 +319,7 @@ if (sys.argv[1] == "efp"):
     parts.f, pot[i] = pauli.forces(parts.x, parts.p)
     q[i+1] = parts.x[0, 0] - parts.x[1, 0]
     p[i+1] = parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])
+    rho[i] = (q[i+1]-q[i])*(p[i+1]-p[i])
     Ecin[i] = (parts.v[0, 0]**2 + parts.v[1, 0]**2)/2
   t = time.time() - t
   print(t)
@@ -328,6 +330,10 @@ if (sys.argv[1] == "efp"):
   plt.plot(q, p)
   plt.xlabel(r"$\Delta q$")
   plt.ylabel(r"$\Delta p$")
+  plt.figure()
+  plt.plot(rho)
+  plt.xlabel('Paso')
+  plt.ylabel(r"$\rho$")
   plt.figure()
   plt.plot(Ecin, "r-")
   plt.plot(pot, "b-")
@@ -355,7 +361,7 @@ def barrido(qo, po, filename, D=10000, tol=1E-2, N=10):
   parts.x = np.array([[2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   parts.v = np.array([[-2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   parts.mass = 1
-  h = 0.001
+  h = 0.0001
   integ = pexmd.integrator.Euler(h)
 
   qinit = 5*qo
@@ -398,17 +404,47 @@ def barrido(qo, po, filename, D=10000, tol=1E-2, N=10):
   plt.close()#plt.show()
   return pmed
 
-  def lado(x, y):
-    n = len(x)
-    i = int(n/2)
-    while(0<i and 0<=x[i]):
-      i -= 1
-      while(i<n-1 and x[i]<=0):
-        i += 1
-        if (x[i] == 0 or i==n-1):
-          return y[i]
-        else:
-          return y[i]-x[i]*(y[i+1]-y[i])/(x[i+1]-x[i])
+def avanzarN(parts, pot, dt, Nstep):
+  for i in range(Nstep):
+    parts.x, parts.v = FixedPoint(parts, pot, dt)
+  return parts.x, parts.v
+
+def vol_fases(qs, ps, Nskip, Nsamp, h=1E-3):
+  n = len(qs)
+  m = len(ps)
+  res = np.zeros((n, m, Nsamp, 2))
+  parts = pexmd.particles.PointParticles(2)
+  pauli = pexmd.interaction.Pauli(200, 10000, 1, 1)
+  parts.mass = 1
+  for i in range(n):
+    for j in range(m):
+      parts.x = np.array([[qs[i], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      parts.v = np.array([[-ps[j], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      for k in range(Nsamp):
+        avanzarN(parts, pauli, h, Nskip)
+        res[i, j, k, :] = [parts.x[0, 0] - parts.x[1, 0], parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
+  plt.figure()
+  for i in range(n):
+    for j in range(m):
+      plt.plot(res[i, j, :, 0], res[i, j, :, 1], 'k.')
+  plt.xlabel(r'$\Delta q$')
+  plt.ylabel(r'$\Delta p$')
+  plt.show()
+  return res
+
+def grilla():
+
+def lado(x, y):
+  n = len(x)
+  i = int(n/2)
+  while(0<i and 0<=x[i]):
+    i -= 1
+    while(i<n-1 and x[i]<=0):
+      i += 1
+      if (x[i] == 0 or i==n-1):
+        return y[i]
+      else:
+        return y[i]-x[i]*(y[i+1]-y[i])/(x[i+1]-x[i])
 
 def area(D, qo = 1, po = 1, N = 10):
   pauli = pexmd.interaction.Pauli(200, D, qo, po)
