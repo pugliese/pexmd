@@ -413,26 +413,192 @@ def vol_fases(qs, ps, Nskip, Nsamp, h=1E-3):
   n = len(qs)
   m = len(ps)
   res = np.zeros((n, m, Nsamp, 2))
+  areag = np.zeros(Nsamp)
+  areac = np.zeros(Nsamp)
+  areap = np.zeros(Nsamp)
   parts = pexmd.particles.PointParticles(2)
   pauli = pexmd.interaction.Pauli(200, 10000, 1, 1)
   parts.mass = 1
   for i in range(n):
     for j in range(m):
+      print(i*m+j+1, "/", n*m)
       parts.x = np.array([[qs[i], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
       parts.v = np.array([[-ps[j], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
       for k in range(Nsamp):
         avanzarN(parts, pauli, h, Nskip)
         res[i, j, k, :] = [parts.x[0, 0] - parts.x[1, 0], parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
   plt.figure()
+  radios = np.zeros((Nsamp, 1000))
+  contorno = np.zeros((Nsamp, 1000))
+  for k in range(Nsamp):
+    matrix, areag[k], reg_q, reg_p = grilla(res[:, :, k, 0].reshape((n*m)), res[:, :, k, 1].reshape((n*m)))
+    plt.plot(reg_q, reg_p, "b.")
+    areac[k], radios[k,:] = policircular(res[:, :, k, 0].reshape((n*m)), res[:, :, k, 1].reshape((n*m)))
+    areap[k], contorno[k,:] = policontorno(res[:, :, k, 0].reshape((n*m)), res[:, :, k, 1].reshape((n*m)))
   for i in range(n):
     for j in range(m):
-      plt.plot(res[i, j, :, 0], res[i, j, :, 1], 'k.')
+      plt.plot(res[i, j, :, 0], res[i, j, :, 1], 'ks')
+  thetas = np.linspace(0, 2*np.pi, 1000)
+  for k in range(Nsamp):
+    plt.plot(np.mean(res[:, :, k, 0].reshape((n*m))) + np.cos(thetas)*radios[k,:], np.mean(res[:, :, k, 1].reshape((n*m))) + np.sin(thetas)*radios[k,:], "k-")
+    plt.plot(np.mean(res[:, :, k, 0].reshape((n*m))) + np.cos(thetas)*contorno[k,:], np.mean(res[:, :, k, 1].reshape((n*m))) + np.sin(thetas)*contorno[k,:], "r-")
   plt.xlabel(r'$\Delta q$')
   plt.ylabel(r'$\Delta p$')
+  plt.figure()
+  plt.semilogy(areag, 'ro--')
+  plt.semilogy(areac, 'b^--')
+  plt.semilogy(areap, 'g^--')
+  plt.legend(['Grilla', 'Policircular', 'Policontorno'])
+  plt.ylabel('Area')
   plt.show()
+  return
+
+def policircular(qs, ps):
+  qcm = sum(qs)/len(qs)
+  pcm = sum(ps)/len(ps)
+  Nangles = 1000
+  thetas = np.linspace(0, 2*np.pi, Nangles)
+  dtheta = thetas[1] - thetas[0]
+  n = len(qs)
+  rs = np.zeros(n)
+  dists = np.zeros(n-1)
+  for i in range(n):
+    dists[0:i] = (qs[i] - qs[0:i])**2 + (ps[i] - ps[0:i])**2
+    dists[i:n] = (qs[i] - qs[i+1:])**2 + (ps[i] - ps[i+1:])**2
+    rs[i] = np.sqrt(min(dists))/2
+  dists_cm = np.sqrt((qs-qcm)**2 + (ps-pcm)**2)
+  q_exts = qs + rs*(qs-qcm)/dists_cm
+  p_exts = ps + rs*(ps-pcm)/dists_cm
+  radios = np.zeros(len(thetas))
+  area = 0
+  for i in range(len(thetas)):
+    cos_diff = np.cos(thetas[i])*(qs-qcm)/dists_cm + np.sin(thetas[i])*(ps-pcm)/dists_cm
+    radios[i] = max(((q_exts-qcm)*np.cos(thetas[i]) + (p_exts-pcm)*np.sin(thetas[i]))*cos_diff)
+    area += 0.5*dtheta*radios[i]**2
+  return area, radios
+
+
+def policontorno(qs, ps):
+  n = len(qs)
+  qcm = sum(qs)/len(qs)
+  pcm = sum(ps)/len(ps)
+  Nangles = 1000
+  thetas = np.linspace(0, 2*np.pi, Nangles)
+  dtheta = thetas[1] - thetas[0]
+  rs = bolas(qs, ps)
+  dists_cm = np.sqrt((qs-qcm)**2 + (ps-pcm)**2)
+  sin_alpha = (ps-pcm)/dists_cm
+  cos_alpha = (qs-qcm)/dists_cm
+  radios = np.zeros((Nangles, n))
+  for i in range(n):
+    sin_theta_alpha = np.sin(thetas)*cos_alpha[i] - sin_alpha[i]*np.cos(thetas)
+    a = rs[i]
+    c = dists_cm[i]
+    for j in range(Nangles):
+      if (c**2*sin_theta_alpha[j]**2 < a**2):
+        radios[j, i] = c*np.sqrt(1-sin_theta_alpha[j]**2) + np.sqrt(a**2 - c**2*sin_theta_alpha[j]**2)
+      else:
+        #radios[j, i] = c*np.sqrt(1-sin_theta_alpha[j]**2)
+        radios[j, i] = 0
+  area = 0
+  contorno = np.zeros(len(thetas))
+  for i in range(len(thetas)):
+    contorno[i] = max(radios[i, :])
+  i = 0
+  while (i<Nangles):
+    j = 0
+    k = 0
+    while (i+j < Nangles and 0 < contorno[i+j]):
+      j += 1
+    if (i+j < Nangles):
+      while (i+j+k < Nangles and contorno[i+j+k] == 0):
+        k += 1
+      for l in range(i+j, i+j+k):
+        contorno[l] = (contorno[i+j+k]-contorno[i+j])*(thetas[l]-thetas[i+j])/(thetas[i+j+k]-thetas[i+j])+contorno[i+j]
+    i = i+j+k
+  for i in range(Nangles):
+    for j in range(n):
+      cmax = contorno[i]
+      cmin = contorno[i]
+      if ((cmax*np.cos(thetas[i])-qs[j])**2 + (cmax*np.sin(thetas[i])-ps[j])**2 < rs[j]**2):
+        while ((cmax*np.cos(thetas[i])-qs[j])**2 + (cmax*np.sin(thetas[i])-ps[j])**2 < rs[j]**2):
+          cmax *= 2
+        for k in range(10):
+          cmed = (cmax+cmin)/2
+          if ((cmed*np.cos(thetas[i])-qs[j])**2 + (cmed*np.sin(thetas[i])-ps[j])**2 < rs[j]**2):
+            cmin = cmed
+          else:
+            cmax = cmed
+        contorno[i] = cmed
+  a = 1
+  p = 1
+  promedio = ventana(a, Nangles)
+  cont_aux = contorno
+  for i in range(Nangles):
+    cont_aux[i] = sum(promedio*contorno**p)
+    promedio = np.roll(promedio, 1)
+  contorno = cont_aux**(1/p)
+  area = 0.5*dtheta*sum(contorno**2)
+  return area, contorno
+
+def ventana(a, N):
+  res = np.zeros(N)
+  res[0] = 1
+  for i in range(a):
+    res[i+1] = 1
+    res[-i] = 1
+  res = res/(2*a+1)
   return res
 
-def grilla():
+def vent_gauss(d, N):
+  n = N/2
+  res = np.exp(-(np.arange(N)-n)**2/d**2)
+  res = res/sum(res)
+  return res
+
+def bolas(qs, ps):
+  n = len(qs)
+  rs = np.zeros(n)
+  dists = np.zeros(n-1)
+  for i in range(n):
+    dists[0:i] = (qs[i] - qs[0:i])**2 + (ps[i] - ps[0:i])**2
+    dists[i:n] = (qs[i] - qs[i+1:])**2 + (ps[i] - ps[i+1:])**2
+    rs[i] = 0.5*np.sqrt(min(dists))
+  return rs
+
+def grilla(qs, ps):
+  # ancho = 25
+  # N = 1000
+  # dq = 2*abs(max(ps) - min(ps))/N
+  # dp = 2*abs(max(qs) - min(qs))/N
+  # qo = (max(qs) + min(qs))/2 - dq*N/2
+  # po = (max(ps) + min(ps))/2 - dp*N/2
+  qo = -6
+  po = 0
+  pmax = 6
+  qmax = 6
+  N = 10000
+  ancho = 10
+  dq = (qmax - qo)/(N-1)
+  dp = (pmax - po)/(N-1)
+  n = len(qs)
+  matrix = np.zeros((N,N))
+  region_q = []
+  region_p = []
+  for k in range(n):
+    i = int(np.round((qs[k]-qo)/dq))
+    j = int(np.round((ps[k]-po)/dp))
+    for l1 in range(-ancho, ancho+1):
+      for l2 in range(-ancho, ancho+1):
+        ii = min(i+l1,N-1)
+        jj = min(j+l2,N-1)
+        if (matrix[ii, jj] == 0):
+          region_q.append(qo + ii*dq)
+          region_p.append(po + jj*dp)
+          matrix[ii, jj] = 1
+  return matrix, sum(sum(matrix))*dq*dp, region_q, region_p
+
+
 
 def lado(x, y):
   n = len(x)
