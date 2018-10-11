@@ -404,51 +404,58 @@ def barrido(qo, po, filename, D=10000, tol=1E-2, N=10):
   plt.close()#plt.show()
   return pmed
 
-def avanzarN(parts, pot, dt, Nstep):
+def avanzarN_fp(parts, pot, dt, Nstep):
   for i in range(Nstep):
     parts.x, parts.v = FixedPoint(parts, pot, dt)
+  return parts.x, parts.v
+
+def avanzarN_E(parts, pot, integ, Nstep):
+  for i in range(Nstep):
+    parts.f, gorces, e = pot.fgorces(parts.x, parts.v)
+    parts.x, parts.v = integ.step(parts.x, parts.v, gorces, parts.a)
   return parts.x, parts.v
 
 def vol_fases(qs, ps, Nskip, Nsamp, h=1E-3):
   n = len(qs)
   m = len(ps)
-  res = np.zeros((n, m, Nsamp, 2))
-  areag = np.zeros(Nsamp)
-  areac = np.zeros(Nsamp)
-  areap = np.zeros(Nsamp)
+  res_e = np.zeros((n, m, Nsamp, 2))
+  res_fp = np.zeros((n, m, Nsamp, 2))
+  area_e = np.zeros(Nsamp)
+  area_fp = np.zeros(Nsamp)
   parts = pexmd.particles.PointParticles(2)
   pauli = pexmd.interaction.Pauli(200, 10000, 1, 1)
   parts.mass = 1
+  integ = pexmd.integrator.Euler(h)
   for i in range(n):
     for j in range(m):
       print(i*m+j+1, "/", n*m)
       parts.x = np.array([[qs[i], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
       parts.v = np.array([[-ps[j], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
       for k in range(Nsamp):
-        avanzarN(parts, pauli, h, Nskip)
-        res[i, j, k, :] = [parts.x[0, 0] - parts.x[1, 0], parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
+        avanzarN_fp(parts, pauli, h, Nskip)
+        res_fp[i, j, k, :] = [parts.x[0, 0] - parts.x[1, 0], parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
+      parts.x = np.array([[qs[i], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      parts.v = np.array([[-ps[j], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      for k in range(Nsamp):
+        avanzarN_E(parts, pauli, integ, Nskip)
+        res_e[i, j, k, :] = [parts.x[0, 0] - parts.x[1, 0], parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
   plt.figure()
-  radios = np.zeros((Nsamp, 1000))
-  contorno = np.zeros((Nsamp, 1000))
   for k in range(Nsamp):
-    matrix, areag[k], reg_q, reg_p = grilla(res[:, :, k, 0].reshape((n*m)), res[:, :, k, 1].reshape((n*m)))
-    plt.plot(reg_q, reg_p, "b.")
-    areac[k], radios[k,:] = policircular(res[:, :, k, 0].reshape((n*m)), res[:, :, k, 1].reshape((n*m)))
-    areap[k], contorno[k,:] = policontorno(res[:, :, k, 0].reshape((n*m)), res[:, :, k, 1].reshape((n*m)))
+    matrix, area_e[k], reg_q, reg_p = grilla(res_e[:, :, k, 0].reshape((n*m)), res_e[:, :, k, 1].reshape((n*m)))
+    matrix, area_fp[k], reg_q, reg_p = grilla(res_fp[:, :, k, 0].reshape((n*m)), res_fp[:, :, k, 1].reshape((n*m)))
+    #plt.plot(reg_q, reg_p, "b.")
+
   for i in range(n):
     for j in range(m):
-      plt.plot(res[i, j, :, 0], res[i, j, :, 1], 'ks')
-  thetas = np.linspace(0, 2*np.pi, 1000)
-  for k in range(Nsamp):
-    plt.plot(np.mean(res[:, :, k, 0].reshape((n*m))) + np.cos(thetas)*radios[k,:], np.mean(res[:, :, k, 1].reshape((n*m))) + np.sin(thetas)*radios[k,:], "k-")
-    plt.plot(np.mean(res[:, :, k, 0].reshape((n*m))) + np.cos(thetas)*contorno[k,:], np.mean(res[:, :, k, 1].reshape((n*m))) + np.sin(thetas)*contorno[k,:], "r-")
+      plt.plot(res_e[i, j, :, 0], res_e[i, j, :, 1], 'ks')
+      plt.plot(res_fp[i, j, :, 0], res_fp[i, j, :, 1], 'ro')
   plt.xlabel(r'$\Delta q$')
   plt.ylabel(r'$\Delta p$')
+
   plt.figure()
-  plt.semilogy(areag, 'ro--')
-  plt.semilogy(areac, 'b^--')
-  plt.semilogy(areap, 'g^--')
-  plt.legend(['Grilla', 'Policircular', 'Policontorno'])
+  plt.plot(area_e, 'ro--')
+  plt.plot(area_fp, 'bo--')
+  plt.legend(['Euler', 'MPR'])
   plt.ylabel('Area')
   plt.show()
   return
@@ -530,7 +537,7 @@ def policontorno(qs, ps):
           else:
             cmax = cmed
         contorno[i] = cmed
-  a = 1
+  a = 0
   p = 1
   promedio = ventana(a, Nangles)
   cont_aux = contorno
@@ -567,32 +574,27 @@ def bolas(qs, ps):
   return rs
 
 def grilla(qs, ps):
-  # ancho = 25
-  # N = 1000
-  # dq = 2*abs(max(ps) - min(ps))/N
-  # dp = 2*abs(max(qs) - min(qs))/N
-  # qo = (max(qs) + min(qs))/2 - dq*N/2
-  # po = (max(ps) + min(ps))/2 - dp*N/2
-  qo = -6
-  po = 0
-  pmax = 6
-  qmax = 6
-  N = 10000
-  ancho = 10
-  dq = (qmax - qo)/(N-1)
-  dp = (pmax - po)/(N-1)
+  dq = 2E-4
+  dp = 2E-4
+  radio = 25
   n = len(qs)
-  matrix = np.zeros((N,N))
+  qo = min(qs)-(radio+1)*dq
+  po = min(ps)-(radio+1)*dp
+  qmax = max(qs)+(radio+1)*dq
+  pmax = max(ps)+(radio+1)*dp
+  N = int((qmax-qo)/dq) + 1
+  M = int((pmax-po)/dp) + 1
+  matrix = np.zeros((N,M))
   region_q = []
   region_p = []
   for k in range(n):
     i = int(np.round((qs[k]-qo)/dq))
     j = int(np.round((ps[k]-po)/dp))
-    for l1 in range(-ancho, ancho+1):
-      for l2 in range(-ancho, ancho+1):
-        ii = min(i+l1,N-1)
-        jj = min(j+l2,N-1)
-        if (matrix[ii, jj] == 0):
+    for l1 in range(-radio, radio+1):
+      for l2 in range(-radio, radio+1):
+        ii = i+l1
+        jj = j+l2
+        if (matrix[ii, jj] == 0 and l1**2+l2**2 <= radio**2):
           region_q.append(qo + ii*dq)
           region_p.append(po + jj*dp)
           matrix[ii, jj] = 1
