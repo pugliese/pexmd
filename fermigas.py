@@ -56,7 +56,7 @@ def avanzar_fp(parts, pairs, pauli, integ, caja, therm):
 qo = 1.664
 po = 120
 h_barra = 196.727394
-D = 207*(h_barra/(po*qo))**3
+D = 207
 scut = 20
 pauli = pexmd.interaction.Pauli(scut, D, qo, po)
 # Box

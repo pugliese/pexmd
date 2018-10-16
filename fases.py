@@ -22,11 +22,11 @@ else:
   Nstep = 5000
 pauli = pexmd.interaction.Pauli(scut, DD, qo, po)
 # Particles
-m = 1
-parts = pexmd.particles.PointParticles(2)
-parts.x = np.array([[6.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
-parts.v = np.array([[-4.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
-parts.mass = m
+#m = 1
+#parts = pexmd.particles.PointParticles(2)
+#parts.x = np.array([[6.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+#parts.v = np.array([[-4.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+#parts.mass = m
 # Integrator
 h = 0.0001
 integ = pexmd.integrator.Euler(h)
@@ -239,7 +239,7 @@ def FixedPoint(parts, interact, dt, Niter = 5):
 def trayectoria_fp(qi, pi, pauli, dt, parts):
   assert(pi*qi<=0)
   parts.x = np.array([[qi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
-  parts.v = np.array([[pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+  parts.v = np.array([[pi/parts.mass[0], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   q = [parts.x[0, 0] - parts.x[1, 0]]
   p = [parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
   while (abs(q[-1])<=abs(qi)*1.05 and abs(p[-1])<=abs(pi)*1.05):
@@ -346,12 +346,15 @@ if (sys.argv[1] == "efp"):
 # ------------------ Muestreo -------------------------- #
 
 def muestreo(qinit, pmax, p_step, D, h=1E-3, rebs = False, pmin = 0):
-  pauli = pexmd.interaction.Pauli(200, D, 1, 1)
+  #pauli = pexmd.interaction.Pauli(200, D, 1, 1)
+  pauli = pexmd.interaction.Pauli(200, D, 1.664, 120)
   h = 0.001
   #Nq = int(pmax/p_step) + 1
   pinits = np.arange(-pmax, -pmin, p_step)
   #pinits = np.linspace(-pmax, 0, Nq)
   pinits = np.array(pinits, dtype = np.float32)
+  parts = pexmd.particles.PointParticles(2)
+  parts.mass = 0.51
   fasesq = []
   fasesp = []
   rs = []
@@ -374,6 +377,7 @@ def muestreo(qinit, pmax, p_step, D, h=1E-3, rebs = False, pmin = 0):
 def muestreo_dif(qinit, pmax, p_step1, p_step2, D, h=1E-3):
   fasesq, fasesp, rs = muestreo(qinit, pmax, p_step1, D, h, True)
   i = len(rs) - sum(rs)
+  print(rs)
   print(i, rs[i-1], rs[i], fasesp[i-1][0], fasesp[i][0])
   fasesq2, fasesp2 = muestreo(qinit, -fasesp[i-1][0], p_step2, D, h, False, -fasesp[i][0])
   fasesq = np.append(fasesq, fasesq2)
