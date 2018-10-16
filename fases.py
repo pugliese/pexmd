@@ -297,8 +297,8 @@ if (sys.argv[1] == "fp"):
   plt.xlabel(r"$\Delta q$")
   plt.ylabel(r"$\Delta p$")
   plt.axis([-qinit, qinit, -pmax, pmax])
-  plt.title("Espacio de fases")
-  plt.savefig("fases_{0}_{1}.png".format(po, qo))
+  #plt.title("Espacio de fases")
+  #plt.savefig("fases_{0}_{1}.png".format(po, qo))
   plt.show()
 
 if (sys.argv[1] == "efp"):
@@ -343,6 +343,53 @@ if (sys.argv[1] == "efp"):
   plt.legend(["Cinetica", "Potencial", "Total"], loc=6)
   plt.show()
 
+# ------------------ Muestreo -------------------------- #
+
+def muestreo(qinit, pmax, p_step, D, h=1E-3, rebs = False, pmin = 0):
+  pauli = pexmd.interaction.Pauli(200, D, 1, 1)
+  h = 0.001
+  #Nq = int(pmax/p_step) + 1
+  pinits = np.arange(-pmax, -pmin, p_step)
+  #pinits = np.linspace(-pmax, 0, Nq)
+  pinits = np.array(pinits, dtype = np.float32)
+  fasesq = []
+  fasesp = []
+  rs = []
+  energia = []
+  for pi in pinits:
+    t = time.time()
+    q, p, r = trayectoria_fp(qinit, pi, pauli, h, parts)
+    fasesq.append(q)
+    fasesp.append(p)
+    rs.append(r)
+    t = time.time()-t
+    print(pi, ":", t)
+  fasesq = np.array(fasesq)
+  fasesp = np.array(fasesp)
+  if rebs:
+    return fasesq, fasesp, rs
+  else:
+    return fasesq, fasesp
+
+def muestreo_dif(qinit, pmax, p_step1, p_step2, D, h=1E-3):
+  fasesq, fasesp, rs = muestreo(qinit, pmax, p_step1, D, h, True)
+  i = len(rs) - sum(rs)
+  print(i, rs[i-1], rs[i], fasesp[i-1][0], fasesp[i][0])
+  fasesq2, fasesp2 = muestreo(qinit, -fasesp[i-1][0], p_step2, D, h, False, -fasesp[i][0])
+  fasesq = np.append(fasesq, fasesq2)
+  fasesp = np.append(fasesp, fasesp2)
+  return fasesq, fasesp
+
+
+
+def plot_muestreo(fasesq, fasesp):
+  for i in range(len(fasesq)):
+    plt.plot(fasesq[i], fasesp[i], "b-")
+    plt.plot(-np.array(fasesq[i]), -np.array(fasesp[i]), "b-")
+  plt.xlabel(r"$\Delta q$")
+  plt.ylabel(r"$\Delta p$")
+  plt.axis([-fasesq[0][0], fasesq[0][0], -fasesp[0][0], fasesp[0][0]])
+# ------------------ Barridos -------------------------- #
 
 def barrido_D(D, tol=1E-2):
   filename = "barridoD_{0}.png".format(D)
@@ -355,15 +402,13 @@ def barrido_PC(P,C, tol=1E-2):
   filename = "barrido_{0}_{1}.png".format(qo*po, qo/po)
   return barrido(qo, po, filename, 10000, tol)
 
-def barrido(qo, po, filename, D=10000, tol=1E-2, N=10):
+def barrido(qo, po, filename="None", D=10000, tol=1E-2):
   pauli = pexmd.interaction.Pauli(200, D, qo, po)
   parts = pexmd.particles.PointParticles(2)
   parts.x = np.array([[2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   parts.v = np.array([[-2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   parts.mass = 1
-  h = 0.0001
-  integ = pexmd.integrator.Euler(h)
-
+  h = 0.001
   qinit = 5*qo
   pinf = 0    # Trayectoria que rebota
   psup = -3*po   # Trayectoria que no rebota
@@ -375,7 +420,6 @@ def barrido(qo, po, filename, D=10000, tol=1E-2, N=10):
     pinf = psup
     psup = 2*psup
     q, p, r = trayectoria_fp(qinit, psup, pauli, integ.dt, parts)
-    print(pinf)
   pmax = abs(psup)
   qs.append(q)
   ps.append(p)
@@ -393,16 +437,48 @@ def barrido(qo, po, filename, D=10000, tol=1E-2, N=10):
       psup = pmed
     print("{0}) {1}: {2} segs".format(i, abs(psup-pinf), time.time()-t))
     i += 1
-  plt.figure()
-  for i in range(len(qs)):
-    plt.plot(-np.array(qs[i]), -np.array(ps[i]), "b-")
-    plt.plot(qs[i],ps[i], "b-")
-  plt.xlabel(r'$\Delta q$')
-  plt.ylabel(r'$\Delta p$')
-  plt.axis([-qinit, qinit, -pmax, pmax])
-  plt.savefig(filename)
-  plt.close()#plt.show()
-  return pmed
+  if filename != "None":
+    plt.figure()
+    for i in range(len(qs)):
+      plt.plot(-np.array(qs[i]), -np.array(ps[i]), "b-")
+      plt.plot(qs[i],ps[i], "b-")
+    plt.xlabel(r'$\Delta q$')
+    plt.ylabel(r'$\Delta p$')
+    plt.axis([-qinit, qinit, -pmax, pmax])
+    plt.savefig(filename)
+    plt.close()#plt.show()
+  q, p, r = trayectoria_fp(qinit, pinf, pauli, integ.dt, parts)
+  return np.array(q), np.array(p)
+
+
+def cuadraturas(qs, ps):
+  i0 = sum(ps<0)   # 0<ps[i] para todo i2<i
+  qmin1 = min(qs[:i0])
+  i1 = max((qs[:i0] == qmin1)*range(i0))
+  qmin2 = min(qs[i0:])
+  i2 = max((qs[i0:] == qmin2)*range(i0,len(qs)))
+  trapecios = (qs[i1+1:i2] - qs[i1:i2-1])*(ps[i1+1:i2] + ps[i1:i2-1])
+  return 2*abs(sum(trapecios))
+
+
+def area(Ds, save=False, tol=1E-2):
+  A = []
+  if (type(tol)!=list and type(tol)!= np.array):
+    tols = np.ones(len(Ds))*tol
+  else:
+    assert(len(tol)==len(Ds))
+    tols = tol
+  if save:
+    names = "fases_D_{0}.png"
+  else:
+    names = "None"
+  for i in range(len(Ds)):
+    print("Barrido para D={0}".format(Ds[i]))
+    q, p = barrido(qo, po, names.format(Ds[i]), Ds[i], tols[i])
+    A.append(cuadraturas(q,p))
+  return np.array(A)
+
+# ------------------ Volumen fases -------------------------- #
 
 def avanzarN_fp(parts, pot, dt, Nstep):
   for i in range(Nstep):
@@ -451,6 +527,7 @@ def vol_fases(qs, ps, Nskip, Nsamp, h=1E-3):
       plt.plot(res_fp[i, j, :, 0], res_fp[i, j, :, 1], 'ro')
   plt.xlabel(r'$\Delta q$')
   plt.ylabel(r'$\Delta p$')
+  plt.title("Espacio de fases")
 
   plt.figure()
   plt.plot(area_e, 'ro--')
@@ -459,6 +536,78 @@ def vol_fases(qs, ps, Nskip, Nsamp, h=1E-3):
   plt.ylabel('Area')
   plt.show()
   return
+
+def grilla(qs, ps):
+  dq = 2E-4
+  dp = 2E-4
+  radio = 25
+  n = len(qs)
+  qo = min(qs)-(radio+1)*dq
+  po = min(ps)-(radio+1)*dp
+  qmax = max(qs)+(radio+1)*dq
+  pmax = max(ps)+(radio+1)*dp
+  N = int((qmax-qo)/dq) + 1
+  M = int((pmax-po)/dp) + 1
+  matrix = np.zeros((N,M))
+  region_q = []
+  region_p = []
+  for k in range(n):
+    i = int(np.round((qs[k]-qo)/dq))
+    j = int(np.round((ps[k]-po)/dp))
+    for l1 in range(-radio, radio+1):
+      for l2 in range(-radio, radio+1):
+        ii = i+l1
+        jj = j+l2
+        if (matrix[ii, jj] == 0 and l1**2+l2**2 <= radio**2):
+          region_q.append(qo + ii*dq)
+          region_p.append(po + jj*dp)
+          matrix[ii, jj] = 1
+  return matrix, sum(sum(matrix))*dq*dp, region_q, region_p
+
+
+if (sys.argv[1] == "vs"):
+  Niter = 10000
+  # Interaction
+  po = 1
+  qo = 1
+  scut = 200
+  D = 10000
+  pauli = pexmd.interaction.Pauli(scut, D, qo, po)
+  # Particles
+  def particulas(Npart,L):
+    x = np.zeros((Npart,3), dtype=np.float32)
+    n3 = int(np.ceil(Npart**(1.0/3)))
+    i = 0
+    for p in it.product(range(n3),range(n3),range(n3)):
+      if Npart <= i:
+        break
+      x[i, :] = np.array(p)*L/n3
+      i += 1
+    return x
+  Npart = 1000
+  m = 1
+  parts = pexmd.particles.PointParticles(Npart)
+  parts.x = particulas(Npart, 5)
+  parts.mass = m
+  pairs = np.array(list(it.combinations(range(Npart), 2)), dtype=np.int64)
+
+  forces1, gorces1, e1 = pauli.fgorces(parts.x, parts.v, pairs)
+  forces2, e2 = pauli.forces(parts.x, parts.v, pairs)
+  gorces2, e3 = pauli.gorces(parts.x, parts.v, pairs)
+  assert(np.std(forces1-forces2) < 1E-6)
+  assert(np.std(gorces1-gorces2) < 1E-6)
+  assert(e1==e2)
+  assert(e2==e3)
+  t1 = time.time()
+  for i in range(Niter):
+    forces1, gorces1, e1 = pauli.fgorces(parts.x, parts.v, pairs)
+  t1 = time.time() - t1
+  t2 = time.time()
+  for i in range(Niter):
+    forces2, e2 = pauli.forces(parts.x, parts.v, pairs)
+    gorces2, e3 = pauli.gorces(parts.x, parts.v, pairs)
+  t2 = time.time() - t2
+  print(t1, t2, t2/t1, t1/t2)
 
 def policircular(qs, ps):
   qcm = sum(qs)/len(qs)
@@ -563,6 +712,8 @@ def vent_gauss(d, N):
   res = res/sum(res)
   return res
 
+
+
 def bolas(qs, ps):
   n = len(qs)
   rs = np.zeros(n)
@@ -572,156 +723,3 @@ def bolas(qs, ps):
     dists[i:n] = (qs[i] - qs[i+1:])**2 + (ps[i] - ps[i+1:])**2
     rs[i] = 0.5*np.sqrt(min(dists))
   return rs
-
-def grilla(qs, ps):
-  dq = 2E-4
-  dp = 2E-4
-  radio = 25
-  n = len(qs)
-  qo = min(qs)-(radio+1)*dq
-  po = min(ps)-(radio+1)*dp
-  qmax = max(qs)+(radio+1)*dq
-  pmax = max(ps)+(radio+1)*dp
-  N = int((qmax-qo)/dq) + 1
-  M = int((pmax-po)/dp) + 1
-  matrix = np.zeros((N,M))
-  region_q = []
-  region_p = []
-  for k in range(n):
-    i = int(np.round((qs[k]-qo)/dq))
-    j = int(np.round((ps[k]-po)/dp))
-    for l1 in range(-radio, radio+1):
-      for l2 in range(-radio, radio+1):
-        ii = i+l1
-        jj = j+l2
-        if (matrix[ii, jj] == 0 and l1**2+l2**2 <= radio**2):
-          region_q.append(qo + ii*dq)
-          region_p.append(po + jj*dp)
-          matrix[ii, jj] = 1
-  return matrix, sum(sum(matrix))*dq*dp, region_q, region_p
-
-
-
-def lado(x, y):
-  n = len(x)
-  i = int(n/2)
-  while(0<i and 0<=x[i]):
-    i -= 1
-    while(i<n-1 and x[i]<=0):
-      i += 1
-      if (x[i] == 0 or i==n-1):
-        return y[i]
-      else:
-        return y[i]-x[i]*(y[i+1]-y[i])/(x[i+1]-x[i])
-
-def area(D, qo = 1, po = 1, N = 10):
-  pauli = pexmd.interaction.Pauli(200, D, qo, po)
-  parts = pexmd.particles.PointParticles(2)
-  parts.x = np.array([[2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
-  parts.v = np.array([[-2.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
-  parts.mass = 1
-  h = 0.001
-  integ = pexmd.integrator.Euler(h)
-
-  pinf = 0    # Trayectoria que rebota; obtengo lq
-  psup = -2   # Trayectoria que no rebota; obtengo lp
-  q, p, r = trayectoria(5, psup, pauli, integ, parts)
-  lq = []
-  lp = []
-  # Valores iniciales
-  while(r):
-    pinf = psup
-    psup = 2*psup
-    q, p, r = trayectoria(5, psup, pauli, integ, parts)
-  lp.append(abs(lado(q, p)))
-  if(pinf==0):
-    lq.append(5)
-  else:
-    q, p, r = trayectoria(5, pinf, pauli, integ, parts)
-    lq.append(abs(lado(p, q)))
-  # Comienzo busqueda
-  for i in range(N):
-    pmed = (psup+pinf)/2
-    q, p, r = trayectoria(5, pmed, pauli, integ, parts)
-    if(r):
-      pinf = pmed
-      lq.append(abs(lado(p, q)))
-      lp.append(lp[-1])
-    else:
-      psup = pmed
-      lp.append(abs(lado(q, p)))
-      lq.append(lq[-1])
-  q, p, r = trayectoria(5, psup, pauli, integ, parts)
-  plt.plot(q,p, "b-")
-  print(p)
-  print([-pi for pi in p])
-  plt.plot(q,[-pi for pi in p], "b-")
-  q, p, r = trayectoria(5, pinf, pauli, integ, parts)
-  plt.plot(q,p, "r-")
-  plt.plot([-qi for qi in q],p, "r-")
-  plt.show()
-  return lq, lp, lq[-1]*lp[-1]*np.pi
-
-def areas_D(D, N=10):
-  res = []
-  i = 1
-  for d in D:
-    print(i, d)
-    x = area(d, 1, 1, N)
-    res.append(x[2])
-    i += 1
-  return res
-
-def areas_qp(qp, D = 0.6, N = 10):
-  res = []
-  i = 1
-  for qpi in qp:
-    print(i, qo)
-    x = area(D, qi, 1.0/qi, N)
-    res.append(x[2])
-    i += 1
-  return res
-
-if (sys.argv[1] == "vs"):
-  Niter = 10000
-  # Interaction
-  po = 1
-  qo = 1
-  scut = 200
-  D = 10000
-  pauli = pexmd.interaction.Pauli(scut, D, qo, po)
-  # Particles
-  def particulas(Npart,L):
-    x = np.zeros((Npart,3), dtype=np.float32)
-    n3 = int(np.ceil(Npart**(1.0/3)))
-    i = 0
-    for p in it.product(range(n3),range(n3),range(n3)):
-      if Npart <= i:
-        break
-      x[i, :] = np.array(p)*L/n3
-      i += 1
-    return x
-  Npart = 1000
-  m = 1
-  parts = pexmd.particles.PointParticles(Npart)
-  parts.x = particulas(Npart, 5)
-  parts.mass = m
-  pairs = np.array(list(it.combinations(range(Npart), 2)), dtype=np.int64)
-
-  forces1, gorces1, e1 = pauli.fgorces(parts.x, parts.v, pairs)
-  forces2, e2 = pauli.forces(parts.x, parts.v, pairs)
-  gorces2, e3 = pauli.gorces(parts.x, parts.v, pairs)
-  assert(np.std(forces1-forces2) < 1E-6)
-  assert(np.std(gorces1-gorces2) < 1E-6)
-  assert(e1==e2)
-  assert(e2==e3)
-  t1 = time.time()
-  for i in range(Niter):
-    forces1, gorces1, e1 = pauli.fgorces(parts.x, parts.v, pairs)
-  t1 = time.time() - t1
-  t2 = time.time()
-  for i in range(Niter):
-    forces2, e2 = pauli.forces(parts.x, parts.v, pairs)
-    gorces2, e3 = pauli.gorces(parts.x, parts.v, pairs)
-  t2 = time.time() - t2
-  print(t1, t2, t2/t1, t1/t2)
