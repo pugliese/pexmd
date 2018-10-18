@@ -568,6 +568,47 @@ def grilla(qs, ps):
           matrix[ii, jj] = 1
   return matrix, sum(sum(matrix))*dq*dp, region_q, region_p
 
+# --------------------- Para el VMD ------------------------- #
+
+def data_vmd(filename="coso.lammpstrj", pi=2, Nsamp=500, Nskip = 5):
+  parts = pexmd.particles.PointParticles(2)
+  pauli = pexmd.interaction.Pauli(200, 10000, 1, 1)
+  parts.x = np.array([[6, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+  parts.v = np.array([[-pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+  parts.mass = 1
+  h = 1E-3
+  header = "ITEM: TIMESTEP\n{0}\nITEM: NUMBER OF ATOMS\n2\nITEM: BOX BOUNDS pp pp pp\n0.0000000000000000e+00 1.2000000000000000e+00\n0.0000000000000000e+00 1.2000000000000000e+00\n0.0000000000000000e+00 1.2000000000000000e+00\nITEM: ATOMS type x y z vx vy vz\n"
+  f = open(filename, "w")
+  for i in range(Nsamp):
+    print(i)
+    parts.x, parts.v = avanzarN_fp(parts, pauli, h, Nskip)
+    f.write(header.format(i*Nskip))
+    f.write("1 {0} 0 0 {1} 0 0 \n".format(parts.x[0][0], parts.v[0][0]))
+    f.write("1 {0} 0 0 {1} 0 0 \n".format(parts.x[1][0], parts.v[1][0]))
+  f.close()
+
+def make_movie(name, pi, Nstep=200, Nskip = 10):
+  parts = pexmd.particles.PointParticles(2)
+  pauli = pexmd.interaction.Pauli(200, 10000, 1, 1)
+  parts.x = np.array([[5, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+  parts.v = np.array([[-pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+  parts.mass = 1
+  h = 1E-3
+  for i in range(Nstep):
+    print(i)
+    parts.x, parts.v = avanzarN_fp(parts, pauli, h, Nskip)
+    plt.figure()
+    plt.plot([parts.x[0,0]], [0], "ro")
+    plt.plot([parts.x[1,0]], [0], "bo")
+    plt.axis([-5, 5, -1, 1])
+    plt.axis('off')
+    if (i<10):
+      plt.savefig("Videos/{0}_0{1}".format(name, i))
+    else:
+      plt.savefig("Videos/{0}_{1}".format(name, i))
+    plt.close()
+
+
 
 if (sys.argv[1] == "vs"):
   Niter = 10000

@@ -5,59 +5,26 @@ import sys
 import itertools as it
 import time
 
-def FixedPoint(parts, pairs, pauli, dt, caja, Niter = 3):
+def FixedPoint(parts, pairs, pauli, dt, Niter = 3):
   Z_x = parts.x
-  Z_v = parts.v
+  Z_p = parts.vp
   for k in range(Niter):
-    forces, e = pauli.forces(Z_x, parts.mass[0]*Z_v, pairs)
-    gorces, e = pauli.gorces(Z_x, parts.mass[0]*Z_v, pairs)
-    #forces, gorces, e = pauli.fgorces(Z_x, parts.mass[0]*Z_v, pairs)
-    fuerza_aux, ecaja = caja(Z_x)
-    Z_x = parts.x + .5*dt*(Z_v - gorces)
-    Z_v = parts.v + .5*dt*(forces+fuerza_aux)/parts.mass[0]
-  return 2*Z_x - parts.x, 2*Z_v - parts.v
-
-def particulas(Npart,L):
-  x = np.zeros((Npart,3), dtype=np.float32)
-  n3 = int(np.ceil(Npart**(1.0/3)))
-  i = 0
-  for p in it.product(range(n3),range(n3),range(n3)):
-    if Npart <= i:
-      break
-    x[i, :] = np.array(p)*L/n3
-    i += 1
-  return x
-
-def energia_cinetica(v, m):
-  return 0.5*sum(sum(v**2))*m[0]
-
-def Corr_temp_eff(p, gorces):
-  Npart = len(p[:,0])
-  return -sum(sum(p*gorces))/(3*Npart)
-
-def fuerzas_caja(x, L, V, k = 20):
-  fuerzas = V*(0.5*L - x)**(k-1)
-  epot = sum(sum((0.5*L - x)**k))*V/k
-  return fuerzas, epot
+    parts.f, parts.g, e = pauli.fgorces(Z_x, Z_p)
+    Z_x = parts.x + .5*dt*parts.v
+    Z_p = parts.p + .5*dt*parts.f
+  return 2*Z_x - parts.x, 2*Z_p - parts.p
 
 def avanzar_fp(parts, pairs, pauli, integ, caja, therm):
   parts.x, parts.v = FixedPoint(parts, pairs, pauli, integ.dt, caja, 5)
-
-  parts.f, ecaja = caja(parts.x)
-  gorces, e = pauli.gorces(parts.x, parts.p, pairs)
-
-  #parts.x, parts.v = bx.wrap_boundary(parts.x, parts.v)
-  parts.v = therm.step(parts.v, parts.mass)
-  Tcorr = Corr_temp_eff(parts.mass[0]*parts.v, gorces)
-  rmax = max([sum((parts.x[i,:] - 2)**2) for i in range(len(parts.x[:,0]))])
-  return parts.x, parts.v, e, ecaja, np.sqrt(rmax), Tcorr
+  parts.f, parts.g, e = pauli.fgorces(parts.x, parts.p, pairs)
+  parts.x, parts.v = bx.wrap_boundary(parts.x, parts.v)
 
 # Interaction
 qo = 1.664
 po = 120
 h_barra = 196.727394
 D = 207
-scut = 20
+scut = 2000
 pauli = pexmd.interaction.Pauli(scut, D, qo, po)
 # Box
 L = 2#5*qo
@@ -70,20 +37,18 @@ therm = pexmd.thermostat.Andersen(To[0], 0)
 Npart = 50#30
 m = 0.5109989461
 parts = pexmd.particles.PointParticles(Npart)
-parts.x = particulas(Npart, L)
-parts.v = np.random.normal(0,np.sqrt(To[0]*1.5), (Npart,3))
+parts.set_pos_box(L)
+parts.p = np.random.normal(0, np.sqrt(To[0]*1.5/m), (Npart, 3))
 parts.mass = m
 pairs = np.array(list(it.combinations(range(Npart), 2)), dtype=np.int64)
 # Integrator
 h = 0.0005
 integ = pexmd.integrator.VelVerlet(h)
 # Potencial de caja
-bx = lambda x: fuerzas_caja(x, 0.5*L, 10, 20)
 
 Nterm = 5000
 Ntemp = len(To)
 Epot = np.zeros(Ntemp*Nterm)
-Epotcaja = np.zeros(Ntemp*Nterm)
 Ecin = np.zeros(Ntemp*Nterm)
 Tcorr = np.zeros(Ntemp*Nterm)
 rmax = np.zeros(Ntemp*Nterm)
@@ -109,18 +74,3 @@ Estd = [np.std(Etot[i*Nterm:(i+1)*Nterm]) for i in range(Ntemp)]
 Teff_mean = [np.mean(Teff[i*Nterm:(i+1)*Nterm]) for i in range(Ntemp)]
 Teff_std = [np.std(Teff[i*Nterm:(i+1)*Nterm]) for i in range(Ntemp)]
 print("%d min, %d segs" %(t/60, t%60))
-plt.figure()
-plt.plot(rmax)
-plt.figure()
-plt.plot(T, "r-")
-plt.plot(Tcorr, "b--")
-plt.plot(T+Tcorr, "k-")
-plt.plot(T)
-plt.figure()
-plt.plot(Ecin, 'r')
-plt.plot(Epot, 'b')
-plt.plot(Epotcaja, 'b--')
-plt.plot(Ecin+Epot, 'k')
-plt.figure()
-plt.errorbar(To, Teff_mean, Teff_std)
-plt.show()
