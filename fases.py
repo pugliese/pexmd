@@ -461,8 +461,8 @@ def cuadraturas(qs, ps):
   i1 = max((qs[:i0] == qmin1)*range(i0))
   qmin2 = min(qs[i0:])
   i2 = max((qs[i0:] == qmin2)*range(i0,len(qs)))
-  trapecios = (qs[i1+1:i2] - qs[i1:i2-1])*(ps[i1+1:i2] + ps[i1:i2-1])
-  return 2*abs(sum(trapecios))
+  trapecios = (qs[i1+1:i2] - qs[i1:i2-1])*(ps[i1+1:i2] + ps[i1:i2-1])  # No pongo el 1/2 porque sumo cada area 2 veces
+  return abs(sum(trapecios))
 
 
 def area(Ds, save=False, tol=1E-2):
