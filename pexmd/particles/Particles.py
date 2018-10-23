@@ -3,6 +3,7 @@ Main Particles module.
 """
 
 import numpy as np
+import itertools as it
 
 class Base(object):
   """
@@ -191,7 +192,7 @@ class PointFermions(object):
 
   @property
   def p(self):
-    return self._v
+    return self._p
 
   @p.setter
   def p(self, value):
@@ -334,5 +335,6 @@ class PointFermions(object):
     for p in it.product(range(n3),range(n3),range(n3)):
       if Npart <= i:
         break
-        self._x[i, :] = np.array(p)*L/n3
-        i += 1
+      self.x[i, :] = np.array(p)*L/n3
+      i += 1
+    return self.x
