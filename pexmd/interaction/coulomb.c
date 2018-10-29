@@ -1,29 +1,29 @@
-#include "qcnm_nn.h"
+#include "coulomb.h"
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
 
-float pair_energ(float r, float energy_cut, float mu, float D){
+float pair_energ(float r, float energy_cut, float K){
 
-  double qexp = exp(-mu*r)/r;
-  return D*qexp - energy_cut;
+  double e = K/r;
+  return e - energy_cut;
 
 }
 
-float pair_force(float r, float mu, float D){
+float pair_force(float r, float K){
 
-  double qexp = exp(-mu*r)/r;
-  return D*qexp*(mu+1.0/r)/r;
+  double e = K/r;
+  return e/(r*r);
 
 }
 
 // Desacopladas, devuelve modulo, encapsula potencial y calcula energy_cut 1 vez
 float forces(float *x, long int* pairs, long int npairs,
-          float D, float mu, float rcut, float *force){
+  float K, float rcut, float *force){
 
   float energy = 0;
   float energy_cut = 0;
-  energy_cut = pair_energ(rcut, 0, mu, D);
+  energy_cut = pair_energ(rcut, 0, K);
 
   for (int l = 0; l < npairs; l++) {
     float delta_r[3];
@@ -41,12 +41,12 @@ float forces(float *x, long int* pairs, long int npairs,
     r = sqrt(r);
 
     if (r<rcut) {
-      float m_force = pair_force(r, mu, D);
+      float m_force = pair_force(r, K);
       for (int k = 0; k < 3; k++){
         force[3*i+k] += m_force*delta_r[k];
         force[3*j+k] -= m_force*delta_r[k];
       }
-      energy += pair_energ(r, energy_cut, mu, D);
+      energy += pair_energ(r, energy_cut, K);
     }
   }
 
