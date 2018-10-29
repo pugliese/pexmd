@@ -179,6 +179,129 @@ class Morse(ShortRange):
     me = morsepairenergy_c(d, vcut, self.req, self.D, self.alpha)
     return me
 
+nn = ct.CDLL('pexmd/interaction/qcnm_nn.so')
+
+nnforces_c = nn.forces
+nnforces_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.c_float,
+                       ct.c_float, ct.c_float, ct.c_voidp]
+nnforces_c.restype = ct.c_float
+
+nnpairforce_c = nn.pair_force
+nnpairforce_c.argtypes = [ct.c_float, ct.c_float, ct.c_float]
+nnpairforce_c.restype = ct.c_float
+
+nnpairenergy_c = nn.pair_energ
+nnpairenergy_c.argtypes = [ct.c_float, ct.c_float, ct.c_float, ct.c_float]
+nnpairenergy_c.restype = ct.c_float
+
+
+class QCNM_nn(ShortRange):
+  """
+  QCNM potential for proton-proton or neutron-neutron
+  """
+  def __init__(self, rcut, mu, D, shift_style='None'):
+    self.D = D
+    self.mu = mu
+    super().__init__(rcut, shift_style)
+
+  def forces(self, x, v, pairs=None):
+    """
+    Calculate QCNM nn force
+    """
+    energ = 0
+    forces = np.zeros_like(x, dtype=np.float32)
+    if pairs is None:
+      pairs = np.array(list(it.combinations(range(len(x)), 2)), dtype=np.int64)
+    xp = x.ctypes.data_as(ct.c_voidp)
+    pairsp = pairs.ctypes.data_as(ct.c_voidp)
+    forcesp = forces.ctypes.data_as(ct.c_voidp)
+    energ = nnforces_c(xp, pairsp, len(pairs), self.D, self.mu, self.rcut, forcesp)
+    return forces, energ
+
+  def pair_force(self, s1, s2):
+    d = np.linalg.norm(s1-s2)
+    if d > self.rcut:
+      return np.zeros_like(s1)
+    mf = nnpairforce_c(d, self.mu, self.D)*(s1-s2)
+    if self.shift_style == 'None':
+      return mf
+    elif self.shift_style == 'Displace':
+      return mf
+
+  def pair_energ(self, s1, s2):
+    d = np.linalg.norm(s1-s2)      # Distance
+    if d >= self.rcut:
+      return 0
+    if self.shift_style == 'None':
+      vcut = 0
+    elif self.shift_style == 'Displace':
+      vcut = nnpairenergy_c(self.rcut, 0, self.mu, self.D)
+    me = nnpairenergy_c(d, vcut, self.mu, self.D)
+    return me
+
+np = ct.CDLL('pexmd/interaction/qcnm_np.so')
+
+npforces_c = np.forces
+npforces_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.c_float,
+                       ct.c_float, ct.c_float, ct.c_float, ct.c_float, ct.c_voidp]
+npforces_c.restype = ct.c_float
+
+nppairforce_c = np.pair_force
+nppairforce_c.argtypes = [ct.c_float, ct.c_float, ct.c_float, ct.c_float, ct.c_float]
+nppairforce_c.restype = ct.c_float
+
+nppairenergy_c = np.pair_energ
+nppairenergy_c.argtypes = [ct.c_float, ct.c_float, ct.c_float, ct.c_float,
+                            ct.c_float, ct.c_float]
+nppairenergy_c.restype = ct.c_float
+
+
+class QCNM_np(ShortRange):
+  """
+  QCNM potential for neutron-proton
+  """
+  def __init__(self, rcut, mur, Dr, mua, Da, shift_style='None'):
+    self.Da = Da
+    self.mua = mua
+    self.Dr = Dr
+    self.mur = mur
+    super().__init__(rcut, shift_style)
+
+  def forces(self, x, v, pairs=None):
+    """
+    Calculate QCNM np force
+    """
+    energ = 0
+    forces = np.zeros_like(x, dtype=np.float32)
+    if pairs is None:
+      pairs = np.array(list(it.combinations(range(len(x)), 2)), dtype=np.int64)
+    xp = x.ctypes.data_as(ct.c_voidp)
+    pairsp = pairs.ctypes.data_as(ct.c_voidp)
+    forcesp = forces.ctypes.data_as(ct.c_voidp)
+    energ = npforces_c(xp, pairsp, len(pairs), self.Dr, self.mur, self.Da, self.mua, self.rcut, forcesp)
+    return forces, energ
+
+  def pair_force(self, s1, s2):
+    d = np.linalg.norm(s1-s2)
+    if d > self.rcut:
+      return np.zeros_like(s1)
+    mf = nppairforce_c(d, self.mur, self.Dr, self.mua, self.Da, self.alpha)*(s1-s2)
+    if self.shift_style == 'None':
+      return mf
+    elif self.shift_style == 'Displace':
+      return mf
+
+  def pair_energ(self, s1, s2):
+    d = np.linalg.norm(s1-s2)      # Distance
+    if d >= self.rcut:
+      return 0
+    if self.shift_style == 'None':
+      vcut = 0
+    elif self.shift_style == 'Displace':
+      vcut = nppairenergy_c(self.rcut, 0, self.mur, self.Dr, self.mua, self.Da, self.alpha)
+    me = nppairenergy_c(self.rcut, vcut, self.mur, self.Dr, self.mua, self.Da, self.alpha)
+    return me
+
 
 pauli = ct.CDLL('pexmd/interaction/pauli.so')
 
