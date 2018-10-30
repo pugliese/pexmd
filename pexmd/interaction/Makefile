@@ -1,11 +1,11 @@
 .PHONY: all clean
 CC = gcc
 LD = gcc
-LD_FLAGS = -shared 
-C_FLAGS = -g -Ofast -fPIC -std=gnu99 
+LD_FLAGS = -shared
+C_FLAGS = -g -Ofast -fPIC -std=gnu99
 
 
-all: lj.so morse.so pauli.so
+all: lj.so morse.so pauli.so coulomb.so qcnm.so
 
 %.so: %.o
 	$(LD) $(LD_FLAGS) $^ -o $@

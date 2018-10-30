@@ -19,7 +19,7 @@ float pair_force(float r, float Vo, float r1, float p1,
   double qexp = exp((r-d)/a);
   double r_red1_pot = pow(r1/r, p1);
   double r_red2_pot = pow(r2/r, p2);
-  return ( (p1*r_red1_pot - p2*r_red2_pot)/r + (r_red1_pot - r_red2_pot)*qexp/(a*(1+qexp)) )*Vo/((1+qexp)*r);
+  return Vo*( (p1*r_red1_pot - p2*r_red2_pot)/r + (r_red1_pot - r_red2_pot)*qexp/(a*(1+qexp)) )/((1+qexp)*r);
 
 }
 

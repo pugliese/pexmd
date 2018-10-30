@@ -354,62 +354,66 @@ class TestInteraction(unittest.TestCase):
     interaction.QCNM(5.4, 25.93, 1.757, 6.2, 1.771, 3, 3.35, 5.0/6.0, "None")
 
   def test_qcnm_two_noshift(self):
-    coul = interaction.QCNM(5.4, 25.93, 1.757, 6.2, 1.771, 3, 3.35, 5.0/6.0, "None")
+    qcnm = interaction.QCNM(5.4, 25.93, 1.757, 6.2, 1.771, 3, 3.35, 5.0/6.0, "None")
     Vn = lambda r: 25.93*((1.757/r)**6.2 - (1.771/r)**3)/(1+np.exp((r-3.35)*1.2))
-    Fn = lambda r: 1.2*Vn(r)/(1 + np.exp((3.35-r)*1.2) ) + 25.93*(6.2*(1.757/r)**7.2 - 3*(1.771/r)**4)/(r*(1+np.exp((r-3.35)*1.2)))
-    f = coul.pair_force(np.array([1.0, 0.0, 0.0]),
+    Fn = lambda r: 25.93*( (6.2*(1.757/r)**6.2 - 3*(1.771/r)**3)/(r*( 1 + np.exp((r-3.35)*1.2) )) +
+    ((1.757/r)**6.2 - (1.771/r)**3)*1.2*np.exp((r-3.35)*1.2)/(( 1 + np.exp((r-3.35)*1.2))**2)  )
+    f = qcnm.pair_force(np.array([1.74397555, 0.0, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    e = coul.pair_energ(np.array([1.0, 0.0, 0.0]),
+    e = qcnm.pair_energ(np.array([1.74397555, 0.0, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    np.testing.assert_almost_equal(e, Vn(1.0))
-    np.testing.assert_array_almost_equal(f, np.array([Fn(1.0), 0, 0]))
-    f = coul.pair_force(np.array([0.0, 2.0, 0.0]),
+    np.testing.assert_almost_equal(e, Vn(1.74397555), 5)
+    np.testing.assert_array_almost_equal(f, np.array([Fn(1.74397555), 0, 0]), 2)
+    f = qcnm.pair_force(np.array([0.0, 2.1376525, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    e = coul.pair_energ(np.array([0.0, 2.0, 0.0]),
+    e = qcnm.pair_energ(np.array([0.0, 2.1376525, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    np.testing.assert_array_almost_equal(f, np.array([0, Fn(2.0), 0]))
-    np.testing.assert_almost_equal(e, Vn(2.0))
-    f = coul.pair_force(np.array([0.0, 7.0, 0.0]),
+    np.testing.assert_array_almost_equal(f, np.zeros(3), 5)
+    np.testing.assert_almost_equal(e, Vn(2.1376525), 5)
+    f = qcnm.pair_force(np.array([0.0, 7.0, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    e = coul.pair_energ(np.array([0.0, 7.0, 0.0]),
+    e = qcnm.pair_energ(np.array([0.0, 7.0, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
     np.testing.assert_array_almost_equal(f, np.zeros(3))
     np.testing.assert_almost_equal(e, 0.0)
-"""
-  def test_qcnm_two_displace(self):
-    coul = interaction.QCNM(5.4, 1.0, "Displace")
-    vcut = 0.185185185185185
 
-    f = coul.pair_force(np.array([2.0, 0.0, 0.0]),
+  def test_qcnm_two_displace(self):
+    qcnm = interaction.QCNM(5.4, 25.93, 1.757, 6.2, 1.771, 3, 3.35, 5.0/6.0, "Displace")
+    vcut = -0.070061513109323251
+
+    Vn = lambda r: 25.93*((1.757/r)**6.2 - (1.771/r)**3)/(1+np.exp((r-3.35)*1.2))
+    Fn = lambda r: 25.93*( (6.2*(1.757/r)**6.2 - 3*(1.771/r)**3)/(r*( 1 + np.exp((r-3.35)*1.2) )) +
+    ((1.757/r)**6.2 - (1.771/r)**3)*1.2*np.exp((r-3.35)*1.2)/(( 1 + np.exp((r-3.35)*1.2))**2)  )
+
+    f = qcnm.pair_force(np.array([1.74397555, 0.0, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    e = coul.pair_energ(np.array([2.0, 0.0, 0.0]),
+    e = qcnm.pair_energ(np.array([1.74397555, 0.0, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    np.testing.assert_array_almost_equal(f, np.array([0.25, 0, 0]))
-    np.testing.assert_almost_equal(e, 0.5 - vcut)
-    f = coul.pair_force(np.array([0.0, 1.0, 0.0]),
+    np.testing.assert_almost_equal(e, Vn(1.74397555)-vcut, 5)
+    np.testing.assert_array_almost_equal(f, np.array([Fn(1.74397555), 0, 0]), 2)
+    f = qcnm.pair_force(np.array([0.0, 2.1376525, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    e = coul.pair_energ(np.array([0.0, 1.0, 0.0]),
+    e = qcnm.pair_energ(np.array([0.0, 2.1376525, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    np.testing.assert_array_almost_equal(f, np.array([0, 1.0, 0]))
-    np.testing.assert_almost_equal(e, 1.0 - vcut)
-    f = coul.pair_force(np.array([0.0, 7.0, 0.0]),
+    np.testing.assert_array_almost_equal(f, np.zeros(3), 5)
+    np.testing.assert_almost_equal(e, Vn(2.1376525)-vcut, 5)
+    f = qcnm.pair_force(np.array([0.0, 7.0, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
-    e = coul.pair_energ(np.array([0.0, 7.0, 0.0]),
+    e = qcnm.pair_energ(np.array([0.0, 7.0, 0.0]),
                       np.array([0.0, 0.0, 0.0]))
     np.testing.assert_array_almost_equal(f, np.zeros(3))
     np.testing.assert_almost_equal(e, 0.0)
 
   def test_qcnm_forces_equal(self):
-    coul = interaction.QCNM(5.4, 1.0, "None")
-    f, e = coul.forces(self.four_by3, self.four_by3)
-    force_by_hand = np.array([[0.0, 0.0, 0.0], [1.25, 0.0, 0.0],
-                              [-1.25, 0.0, 0.0], [0.0, 0.0, 0.0]])
-    np.testing.assert_array_almost_equal(f, force_by_hand)
+    qcnm = interaction.QCNM(5.4, 25.93, 1.757, 6.2, 1.771, 3, 3.35, 5.0/6.0, "Displace")
+    f, e = qcnm.forces(self.four_by3, self.four_by3)
+    force_by_hand = np.array([[0.0, 0.0, 0.0], [4640.0286119194725, 0.0, 0.0],
+                              [-4640.0286119194725, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    np.testing.assert_array_almost_equal(f, force_by_hand, 2)
 
   def test_qcnm_forces_diff(self):
-    coul = interaction.QCNM(5.4, 1.0, "None")
-    f, e = coul.forces(self.four_by3, self.four_by3, pairs=np.array([[0, 2], [0, 3], [1, 2], [1, 3]], dtype=np.int64))
-    force_by_hand = np.array([[1.0, 0.0, 0.0], [0.25, 0.0, 0.0],
-                              [-1.25, 0.0, 0.0], [0.0, 0.0, 0.0]])
-    np.testing.assert_array_almost_equal(f, force_by_hand)
-"""
+    qcnm = interaction.QCNM(5.4, 25.93, 1.757, 6.2, 1.771, 3, 3.35, 5.0/6.0, "Displace")
+    f, e = qcnm.forces(self.four_by3, self.four_by3, pairs=np.array([[0, 2], [0, 3], [1, 2], [1, 3]], dtype=np.int64))
+    force_by_hand = np.array([[4633.5736442640737, 0.0, 0.0], [6.4549676553989599, 0.0, 0.0],
+                              [-4640.0286119194725, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    np.testing.assert_array_almost_equal(f, force_by_hand, 3)
