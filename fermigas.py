@@ -13,7 +13,7 @@ def FixedPoint(parts, pairs, pauli, dt, Niter = 5):
   for k in range(Niter):
     parts.f, parts.g, e = pauli.fgorces(Z_x, Z_p)
     fcaja = 0#fuerzas_caja(parts.x)
-    Z_x = parts.x + .5*dt*parts.v
+    Z_x = parts.x + .5*dt*(Z_p-parts.g)
     Z_p = parts.p + .5*dt*(parts.f+fcaja)
   return 2*Z_x - parts.x, 2*Z_p - parts.p
 
