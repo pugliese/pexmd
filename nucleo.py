@@ -22,11 +22,11 @@ D = 34.32
 pauli = pexmd.interaction.Pauli(scut, D, qo, po)
 
 # Coulomb
-e2 = 0#1.4403427984368629
+e2 = 1.4403427984368629
 coul = pexmd.interaction.Coulomb(scut, e2)
 
 # Nuclear
-Vo = 0#25.93
+Vo = 25.93
 r1 = 1.757
 p1 = 6.2
 r2 = 1.771
@@ -34,6 +34,7 @@ p2 = 3
 d = 3.350
 a = 5.0/6.0
 nuclear = pexmd.interaction.QCNM(scut, Vo, r1, p1, r2, p2, d, a)
+
 
 def FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, dt, k=2, Niter = 5):
   Z_x = parts.x
@@ -64,7 +65,15 @@ def armar_atomo(N_prot, N_neut, To=0.2, L=4):
   parts.mass = mp
   parts.t = [0 for i in range(N_prot)] + [1 for i in range(N_neut)]
   pairs_nuc = np.array(list(it.combinations(range(Npart), 2)), dtype=np.int64)
-  pairs_pauli = np.array(list(it.combinations(range(N_prot), 2))+list(it.combinations(range(N_prot, Npart), 2)), dtype=np.int64)
+  '''
+  pairs_pauli = list(it.combinations(range(N_prot//2), 2))
+  pairs_pauli += list(it.combinations(range(N_prot//2, N_prot), 2))
+  pairs_pauli += list(it.combinations(range(N_prot, N_prot+N_neut//2), 2))
+  pairs_pauli += list(it.combinations(range(N_prot+N_neut//2, Npart), 2))
+  '''
+  pairs_pauli = list(it.combinations(range(N_prot), 2))
+  pairs_pauli += list(it.combinations(range(N_prot, Npart), 2))
+  pairs_pauli = np.array(pairs_pauli, dtype=np.int64)
   pairs_coul = np.array(list(it.combinations(range(N_prot), 2)), dtype=np.int64)
   return parts, pairs_pauli, pairs_nuc, pairs_coul
 
@@ -91,132 +100,73 @@ def dist_fases(parts):
   return np.array(q), np.array(p)
 
 def save_checkpoint(parts, filename='checkpoint_nucleo.txt'):
-  f = open(filename, 'w')
-  f.write(str(parts.n)+'\n')
+  data = []
   for i in range(parts.n):
-    f.write(str(parts.x[i])[1:-1]+' \n')
-  for i in range(parts.n):
-    f.write(str(parts.p[i])[1:-1]+' \n')
-    #f.write('{0}, {1}, {2}'.format(parts.p[i]))
-  for i in range(parts.n):
-    f.write(str(parts.f[i])[1:-1]+' \n')
-    #f.write('{0}, {1}, {2}'.format(parts.f[i]))
-  for i in range(parts.n):
-    f.write(str(parts.g[i])[1:-1]+' \n')
-    #f.write('{0}, {1}, {2}'.format(parts.g[i]))
-  for i in range(parts.n):
-    f.write('{0} {1} \n'.format(parts.mass[i], parts.t[i]))
-  f.close()
+    data.append([])
+    data[i].append(parts.t[i])
+    data[i].append(parts.mass[i])
+    data[i] = data[i] + list(parts.x[i, :])
+    data[i] = data[i] + list(parts.p[i, :])
+    data[i] = data[i] + list(parts.f[i, :])
+    data[i] = data[i] + list(parts.g[i, :])
+  data = np.array(data)
+  np.savetxt(filename, data)
+
 
 def load_checkpoint(filename='checkpoint_nucleo.txt'):
-  f = open(filename, 'r')
-  line = f.readline()
-  n = int(line)
-  parts = pexmd.particles.PointFermions(n)
-  for i in range(n):
-    line = f.readline()
-    data = line.split(' ')
-    print(data)
-    parts.x[i, 0] = float(data[0])
-    parts.x[i, 1] = float(data[1])
-    parts.x[i, 2] = float(data[2])
-  for i in range(parts.n):
-    line = f.readline()
-    data = line.split(' ')
-    parts.p[i, 0] = float(data[0])
-    parts.p[i, 1] = float(data[1])
-    parts.p[i, 2] = float(data[2])
-  for i in range(parts.n):
-    line = f.readline()
-    data = line.split(' ')
-    parts.f[i, 0] = float(data[0])
-    parts.f[i, 1] = float(data[1])
-    parts.f[i, 2] = float(data[2])
-  for i in range(parts.n):
-    line = f.readline()
-    data = line.split(' ')
-    parts.g[i, 0] = float(data[0])
-    parts.g[i, 1] = float(data[1])
-    parts.g[i, 2] = float(data[2])
-  for i in range(parts.n):
-    line = f.readline()
-    data = line.split(' ')
-    parts.t[i] = int(data[0])
-    parts.mass[i] = float(data[1])
-  f.close()
+  data = np.loadtxt(filename, unpack=True)
+  parts = pexmd.particles.PointFermions(len(data[0]))
+  parts.t = data[0]
+  parts.mass = data[1]
+  parts.x = np.transpose(data[2:5])
+  parts.p = np.transpose(data[5:8])
+  parts.f = np.transpose(data[8:11])
+  parts.g = np.transpose(data[11:14])
   return parts
 
 def max_dist(x):
   return np.sqrt(max(sum(x**2)))
 
+def muestrear_N(parts, N=int(1E4)):
+  E_real = np.zeros(N)
+  T_eff = np.zeros(N)
+  for i in range(N):
+    e_pauli, e_coul, e_nuc, e_caja = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, 0)
+    e_cin = parts.kinetic_energy
+    E_real[i] = e_coul + e_nuc + e_cin + e_pauli
+    T_eff[i] = e_cin/(1.5*parts.n) + parts.Teff_corr
+  return E_real, T_eff
 
-parts, pairs_pauli, pairs_nuc, pairs_coul = armar_atomo(3, 3)
+def enfriar(parts, N_resc, N_steps, N_ramp, k, factor = 0.9):
+  N_tot = 2*N_ramp + N_resc*N_steps
+  E_real = np.zeros(N_tot)
+  E_tot = np.zeros(N_tot)
+  E_cin = np.zeros(N_tot)
+  idx = 0
+  for i in range(N_ramp):
+    e_pauli, e_coul, e_nuc, e_caja = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, k*(1.0+i)/N_ramp)
+    E_cin[idx] = parts.kinetic_energy
+    E_real[idx] = e_coul + e_nuc + E_cin[idx] + e_pauli
+    E_tot[idx] = E_real[idx] + e_caja
+    idx += 1
+  for j in range(N_resc):
+    parts.p = factor*parts.p
+    for i in range(N_steps):
+      e_pauli, e_coul, e_nuc, e_caja = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, k)
+      E_cin[idx] = parts.kinetic_energy
+      E_real[idx] = e_coul + e_nuc + E_cin[idx] + e_pauli
+      E_tot[idx] = E_real[idx] + e_caja
+      idx += 1
+  for i in range(N_ramp):
+    e_pauli, e_coul, e_nuc, e_caja = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, k - k*(1.0+i)/N_ramp)
+    E_cin[idx] = parts.kinetic_energy
+    E_real[idx] = e_coul + e_nuc + E_cin[idx] + e_pauli
+    E_tot[idx] = E_real[idx] + e_caja
+    idx += 1
+  if(E_real[0]<E_real[-1]):
+    print('La energia aumenta')
+  return E_real, E_tot, E_cin
 
+# Atomo
+parts, pairs_pauli, pairs_nuc, pairs_coul = armar_atomo(8, 8)
 h = 1E-3
-N = int(1/h)
-N_resc = 50
-fact_resc = 0.8
-e_pauli = np.zeros((N_resc+10)*N)
-e_coul = np.zeros((N_resc+10)*N)
-e_nuc = np.zeros((N_resc+10)*N)
-ecaja = np.zeros((N_resc+10)*N)
-ecin = np.zeros((N_resc+10)*N)
-tam = np.zeros((N_resc+10)*N)
-dists = np.zeros(((N_resc+10)*N, 6))
-qs = np.zeros((N_resc+4, 15))
-ps = np.zeros((N_resc+4, 15))
-k_init = 15
-parts.f, parts.g, e_pauli[0], e_coul[0], e_nuc[0], ecaja[0] = calc_fgorces(parts.x, parts.p, pairs_pauli, pairs_coul, pairs_nuc)
-for i in range(N):
-  e_pauli[i], e_coul[i], e_nuc[i], ecaja[i] = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, k_init)
-  ecin[i] = parts.kinetic_energy
-  tam[i] = max_dist(parts.x)
-  dists[i] = np.sqrt(sum(np.transpose(parts.x)**2))
-qs[0, :], ps[0, :] = dist_fases(parts)
-for j in range(1, N_resc+1):
-    parts.p = fact_resc*parts.p
-    for i in range(N):
-      e_pauli[i+j*N], e_coul[i+j*N], e_nuc[i+j*N], ecaja[i+j*N] = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, k_init)
-      ecin[i+j*N] = parts.kinetic_energy
-      tam[i+j*N] = max_dist(parts.x)
-      dists[i+j*N] = np.sqrt(sum(np.transpose(parts.x)**2))
-    qs[j, :], ps[j, :] = dist_fases(parts)
-for i in range(3*N):
-  e_pauli[i+(N_resc+1)*N], e_coul[i+(N_resc+1)*N], e_nuc[i+(N_resc+1)*N], ecaja[i+(N_resc+1)*N] = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, k_init*(3.0-1.0*i/N)/3)
-  ecin[i+(N_resc+1)*N] = parts.kinetic_energy
-  tam[i+(N_resc+1)*N] = max_dist(parts.x)
-  dists[i+(N_resc+1)*N] = np.sqrt(sum(np.transpose(parts.x)**2))
-qs[N_resc+2, :], ps[N_resc+2, :] = dist_fases(parts)
-for i in range(6*N):
-  e_pauli[i+(N_resc+4)*N], e_coul[i+(N_resc+4)*N], e_nuc[i+(N_resc+4)*N], ecaja[i+(N_resc+4)*N] = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, 0)
-  ecin[i+(N_resc+4)*N] = parts.kinetic_energy
-  tam[i+(N_resc+4)*N] = max_dist(parts.x)
-  dists[i+(N_resc+4)*N] = np.sqrt(sum(np.transpose(parts.x)**2))
-qs[N_resc+3, :], ps[N_resc+3, :] = dist_fases(parts)
-
-plt.figure()
-plt.plot(e_pauli, 'k')
-plt.plot(e_coul, 'b')
-plt.plot(e_nuc, 'r')
-plt.plot(ecaja, 'y')
-plt.plot(ecin, 'r--')
-plt.plot(ecin+e_pauli + e_coul + ecaja + e_nuc, 'c--')
-plt.legend(['Pauli', 'Coulomb', 'Nuclear', 'Trampa', 'Cinetica', 'Total'])
-plt.figure()
-for i in range(N_resc+4):
-  plt.plot(qs[i], ps[i], '.')
-plt.xlabel('q')
-plt.ylabel('p')
-
-'''
-plt.figure()
-plt.plot(tam, 'k')
-plt.plot(dists[:, 0], 'k')
-plt.plot(dists[:, 1], 'k')
-plt.plot(dists[:, 2], 'k')
-plt.plot(dists[:, 3], 'k')
-plt.plot(dists[:, 4], 'k')
-plt.plot(dists[:, 5], 'k')
-'''
-
-plt.show()
