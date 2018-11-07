@@ -110,7 +110,7 @@ def save_checkpoint(parts, filename='checkpoint_nucleo.txt'):
     data[i] = data[i] + list(parts.f[i, :])
     data[i] = data[i] + list(parts.g[i, :])
   data = np.array(data)
-  np.savetxt(filename, data)
+  np.savetxt(filename, data, fmt="%1d %.18e %.18e %.18e %.18e %.18e %.18e %.18e %.18e %.18e %.18e %.18e %.18e %.18e")
 
 
 def load_checkpoint(filename='checkpoint_nucleo.txt'):
@@ -123,6 +123,22 @@ def load_checkpoint(filename='checkpoint_nucleo.txt'):
   parts.f = np.transpose(data[8:11])
   parts.g = np.transpose(data[11:14])
   return parts
+
+def pal_vmd(filename):
+  new_filename = filename[:-3] + "lammpstrj"
+  parts = load_checkpoint(filename)
+  f = open(filename, "r")
+  data = f.read()
+  f.close()
+  f = open(new_filename, "w")
+  lims = [min(parts.x[:, 0]), max(parts.x[:, 0]), min(parts.x[:, 1]), max(parts.x[:,1]), min(parts.x[:,2]), max(parts.x[:, 2])]
+  header1 = "ITEM: TIMESTEP\n0\nITEM: NUMBER OF ATOMS\n{0}\n".format(parts.n)
+  header2 = "ITEM: BOX BOUNDS pp pp pp\n{0} {1}\n{2} {3}\n{4} {5}\n".format(lims[0], lims[1], lims[2], lims[3], lims[4], lims[5])
+  header3 = "ITEM: ATOMS type mass x y z vx vy vz fx fy fz gx gy gz\n"
+  f = open(new_filename, "w")
+  f.write(header1 + header2 + header3 + data)
+  f.close()
+
 
 def max_dist(x):
   return np.sqrt(max(sum(x**2)))
@@ -168,5 +184,5 @@ def enfriar(parts, N_resc, N_steps, N_ramp, k, factor = 0.9):
   return E_real, E_tot, E_cin
 
 # Atomo
-parts, pairs_pauli, pairs_nuc, pairs_coul = armar_atomo(8, 8)
+parts, pairs_pauli, pairs_nuc, pairs_coul = armar_atomo(20, 20)
 h = 1E-3
