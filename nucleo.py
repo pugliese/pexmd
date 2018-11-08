@@ -143,11 +143,14 @@ def pal_vmd(filename):
   f.write(header1 + header2 + header3 + data)
   f.close()
 
+def radio(parts):
+  cm = np.mean(parts.x, 0)
+  r = np.zeros(parts.n)
+  for i in range(parts.n):
+    r[i] = np.linalg.norm(parts.x[i,:]-cm)
+  return np.max(r)
 
-def max_dist(x):
-  return np.sqrt(max(sum(x**2)))
-
-def muestrear_N(parts, N=int(1E4)):
+def muestrear_N(parts, N=10000):
   E_real = np.zeros(N)
   T_eff = np.zeros(N)
   for i in range(N):
