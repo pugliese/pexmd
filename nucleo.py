@@ -99,6 +99,10 @@ def dist_fases(parts):
       p.append(np.linalg.norm(parts.p[i] - parts.p[j]))
   return np.array(q), np.array(p)
 
+def energy(parts):
+  parts.f, parts.g, e_pauli, e_coul, e_nuc, e_caja = calc_fgorces(parts.x, parts.p, pairs_pauli, pairs_coul, pairs_nuc)
+  return parts.kinetic_energy + e_pauli + e_coul + e_nuc
+
 def save_checkpoint(parts, filename='checkpoint_nucleo.txt'):
   data = []
   for i in range(parts.n):
