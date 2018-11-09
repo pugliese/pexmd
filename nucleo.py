@@ -143,6 +143,23 @@ def pal_vmd(filename):
   f.write(header1 + header2 + header3 + data)
   f.close()
 
+def video(filename, parts, N_frames, N_skip = 10):
+  f = open(filename+".lammpstrj", 'w')
+  formato = "%1d %.18e %.18e %.18e\n"
+  for i in range(N_frames):
+    for j in range(N_skip):
+      e_pauli, e_coul, e_nuc, e_caja = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, 0)
+    lims = [min(parts.x[:, 0]), max(parts.x[:, 0]), min(parts.x[:, 1]), max(parts.x[:,1]), min(parts.x[:,2]), max(parts.x[:, 2])]
+    header1 = "ITEM: TIMESTEP\n{0}\nITEM: NUMBER OF ATOMS\n{1}\n".format(i*N_skip, parts.n)
+    header2 = "ITEM: BOX BOUNDS pp pp pp\n{0} {1}\n{2} {3}\n{4} {5}\n".format(lims[0], lims[1], lims[2], lims[3], lims[4], lims[5])
+    header3 = "ITEM: ATOMS type x y z\n"
+    f.write(header1 + header2 + header3)
+    for j in range(parts.n):
+      f.write(formato %(parts.t[j], parts.x[j, 0], parts.x[j, 1], parts.x[j, 2]))
+  f.close()
+
+
+
 def radio(parts):
   cm = np.mean(parts.x, 0)
   r = np.zeros(parts.n)
@@ -151,14 +168,11 @@ def radio(parts):
   return np.max(r)
 
 def muestrear_N(parts, N=10000):
-  E_real = np.zeros(N)
-  T_eff = np.zeros(N)
+  R = np.zeros(N)
   for i in range(N):
     e_pauli, e_coul, e_nuc, e_caja = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, 0)
-    e_cin = parts.kinetic_energy
-    E_real[i] = e_coul + e_nuc + e_cin + e_pauli
-    T_eff[i] = e_cin/(1.5*parts.n) + parts.Teff_corr
-  return E_real, T_eff
+    R[i] = radio(parts)
+  return R
 
 def enfriar(parts, N_resc, N_steps, N_ramp, k, factor = 0.9):
   N_tot = 2*N_ramp + N_resc*N_steps
