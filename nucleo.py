@@ -19,7 +19,7 @@ qo = 6.00
 po = 2.067
 h_barra = 6.582119
 D = 34.32
-pauli = pexmd.interaction.Pauli(scut, D, qo, po)
+pauli = pexmd.interaction.Pauli(scut, D*(h_bar/(qo*po))**3, qo, po)
 
 # Coulomb
 e2 = 1.4403427984368629
