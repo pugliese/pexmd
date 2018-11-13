@@ -19,7 +19,7 @@ qo = 6.00
 po = 2.067
 h_barra = 6.582119
 D = 34.32
-pauli = pexmd.interaction.Pauli(scut, D*(h_bar/(qo*po))**3, qo, po)
+pauli = pexmd.interaction.Pauli(scut, D*(h_barra/(qo*po))**3, qo, po)
 
 # Coulomb
 e2 = 1.4403427984368629
@@ -103,6 +103,10 @@ def energy(parts):
   parts.f, parts.g, e_pauli, e_coul, e_nuc, e_caja = calc_fgorces(parts.x, parts.p, pairs_pauli, pairs_coul, pairs_nuc)
   return parts.kinetic_energy + e_pauli + e_coul + e_nuc
 
+def energies(parts):
+  parts.f, parts.g, e_pauli, e_coul, e_nuc, e_caja = calc_fgorces(parts.x, parts.p, pairs_pauli, pairs_coul, pairs_nuc)
+  return parts.kinetic_energy, e_pauli, e_coul, e_nuc
+
 def save_checkpoint(parts, filename='checkpoint_nucleo.txt'):
   data = []
   for i in range(parts.n):
@@ -180,6 +184,7 @@ def enfriar(parts, N_resc, N_steps, N_ramp, k, factor = 0.9):
   E_tot = np.zeros(N_tot)
   E_cin = np.zeros(N_tot)
   idx = 0
+  t0 = datetime.now()
   for i in range(N_ramp):
     e_pauli, e_coul, e_nuc, e_caja = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, k*(1.0+i)/N_ramp)
     E_cin[idx] = parts.kinetic_energy
@@ -200,10 +205,20 @@ def enfriar(parts, N_resc, N_steps, N_ramp, k, factor = 0.9):
     E_real[idx] = e_coul + e_nuc + E_cin[idx] + e_pauli
     E_tot[idx] = E_real[idx] + e_caja
     idx += 1
+  t1 = datetime.now()
+  print((t1-t0).total_seconds())
   if(E_real[0]<E_real[-1]):
     print('La energia aumenta')
   return E_real, E_tot, E_cin
 
 # Atomo
-parts, pairs_pauli, pairs_nuc, pairs_coul = armar_atomo(20, 20)
+if (len(sys.argv)==1):
+  parts, pairs_pauli, pairs_nuc, pairs_coul = armar_atomo(20, 20)
+if (len(sys.argv)==2):
+  n = int(sys.argv[1])
+  parts, pairs_pauli, pairs_nuc, pairs_coul = armar_atomo(n, n)
+if (len(sys.argv)==3):
+  n = int(sys.argv[1])
+  m = int(sys.argv[2])
+  parts, pairs_pauli, pairs_nuc, pairs_coul = armar_atomo(n, m)
 h = 1E-3
