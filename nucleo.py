@@ -163,6 +163,52 @@ def video(filename, parts, N_frames, N_skip = 10):
   f.close()
 
 
+def video_enfriando(filename, parts, factores, N_skip = 10):
+  f = open(filename+".lammpstrj", 'w')
+  formato = "%1d %.18e %.18e %.18e\n"
+  N_resc = len(factores)
+  N_frames = 100*N_resc
+  E = np.zeros(N_frames)
+  T = np.zeros(N_frames)
+  for i in range(N_resc):
+    parts.p *= factores[i]
+    for k in range(100):
+      for j in range(N_skip):
+        e_pauli, e_coul, e_nuc, e_caja = FixedPoint(parts, pairs_pauli, pairs_coul, pairs_nuc, h, 0)
+      lims = [min(parts.x[:, 0]), max(parts.x[:, 0]), min(parts.x[:, 1]), max(parts.x[:,1]), min(parts.x[:,2]), max(parts.x[:, 2])]
+      header1 = "ITEM: TIMESTEP\n{0}\nITEM: NUMBER OF ATOMS\n{1}\n".format((100*i+k)*N_skip, parts.n)
+      header2 = "ITEM: BOX BOUNDS pp pp pp\n{0} {1}\n{2} {3}\n{4} {5}\n".format(lims[0], lims[1], lims[2], lims[3], lims[4], lims[5])
+      header3 = "ITEM: ATOMS type x y z\n"
+      f.write(header1 + header2 + header3)
+      for j in range(parts.n):
+        f.write(formato %(parts.t[j], parts.x[j, 0], parts.x[j, 1], parts.x[j, 2]))
+      E[i*100+k] = energy(parts)
+      T[i*100+k] = parts.kinetic_energy/(1.5*parts.n) + parts.Teff_corr
+  f.close()
+  return E, T
+
+def armar_figuras(E, T):
+  pasos = 10*np.arange(len(E))
+  for i in range(len(E)):
+    plt.figure()
+    plt.plot(pasos, E, 'b-')
+    plt.plot([10*i], [E[i]], 'yo')
+    plt.xlabel('Paso')
+    plt.ylabel('Energia')
+    plt.title('E = {0}MeV'.format(E[i]))
+    plt.savefig('Videos/Enfriar_Oro/energy_%05d.png' %(i))
+    plt.close()
+    plt.figure()
+    plt.plot(pasos, T, 'b-')
+    plt.plot([10*i], [T[i]], 'yo')
+    plt.xlabel('Paso')
+    plt.ylabel('Temperatura efectiva')
+    plt.title('Teff = {0}MeV'.format(T[i]))
+    plt.savefig('Videos/Enfriar_Oro/temperature_%05d.png' %(i))
+    plt.close()
+
+
+
 
 def radio(parts):
   cm = np.mean(parts.x, 0)
