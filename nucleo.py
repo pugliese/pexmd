@@ -187,7 +187,7 @@ def video_enfriando(filename, parts, factores, N_skip = 10):
   f.close()
   return E, T
 
-def armar_figuras(E, T):
+def armar_figuras(E, T, N_skip = 10):
   pasos = 10*np.arange(len(E))
   for i in range(len(E)):
     plt.figure()
