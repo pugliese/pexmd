@@ -10,9 +10,9 @@ from datetime import datetime
 # Pauli: qo = 6.00fm , po = 2.067 MeV*1E-22 s/fm , D = 34.32MeV, h_bar = 6.582119 MeV*1E-22s
 # Coulomb: k = e^2 = h_bar * c / 137 = 1.4403427984368629 Mev*fm
 # Nuclear: Vo = 25.93 , r1 = 1.757 fm , p1 = 6.2 , r2 = 1.771 , p2 = 3 , d = 3.350fm , a = 5/6fm
-# Masa proton: mp = 938.27203 MeV/c*c = 938.27203 MeV /(30)**2 = 1.0422
+# Masa proton: mp = 938.27203 MeV/c*c = 938.27203 MeV /(29.98fm/s * 1E22)**2 = 1.043916
 
-mp = 1.0422
+mp = 1.043916
 scut = 2000
 # Pauli
 qo = 6.00
@@ -21,10 +21,10 @@ h_barra = 6.582119
 D = 34.32
 #pauli = pexmd.interaction.Pauli(scut, D*(h_barra/(qo*po))**3, qo, po)
 #pauli = pexmd.interaction.Pauli(scut, 6.7934, qo, po)
-pauli = pexmd.interaction.Pauli(scut, 4.5*D*(h_barra/(qo*po))**3, qo, po)
+pauli = pexmd.interaction.Pauli(scut, D, qo, po)
 
 # Coulomb
-e2 = 1.4403427984368629
+e2 = 1.439965 # Wolfram
 coul = pexmd.interaction.Coulomb(scut, e2)
 
 # Nuclear
