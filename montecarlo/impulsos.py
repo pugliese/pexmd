@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pylab as plt
-#import scipy.optimize as sc
+import scipy.optimize as sc
 import sys
 
 Tinit =  0.003
@@ -8,7 +8,7 @@ T_step = 0.0005
 formato = "%f"
 tipo = "n"
 Nbins = 50
-masa = "mx1000_"
+masa = "mx100_Lx1.25_"
 
 if (len(sys.argv) >= 2):
   orden = int(sys.argv[1])
@@ -65,11 +65,11 @@ if (tipo == "f"):
   Tms = np.zeros(6)
   for k in range(6):
     p[k,:] = (bins[k,1:] + bins[k,:-1])/2
-    params, coso = sc.curve_fit(FD, p[k,:], ns[k,:], [N_max, 1, 1], bounds = ([0,0,0],[np.inf,np.inf,np.inf]))
+    params, coso = sc.curve_fit(FD, p[k,:], ns[k,:], [N_max, 0, 100000], bounds = ([0,0,0],[np.inf,np.inf,np.inf]))
     As[k] = params[0]
     muTs[k] = params[1]
     Tms[k] = params[2]
-    params, coso = sc.curve_fit(FB, p[k,:], ns[k,:], [N_max, 1], bounds = ([0,0],[np.inf,np.inf]))
+    params, coso = sc.curve_fit(FB, p[k,:], ns[k,:], [N_max, 1000], bounds = ([0,0],[np.inf,np.inf]))
     As_B[k] = params[0]
     Tms_B[k] = params[1]
 
