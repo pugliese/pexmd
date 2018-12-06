@@ -197,15 +197,21 @@ int step(struct Particles *parts, struct Pauli *pauli, struct Externos *params){
   return res;
 }
 
+int N_steps(struct Particles *parts, struct Pauli *pauli, struct Externos *params, int Nsteps){
+  int aceptados = 0;
+  for (int k = 0; k < Nsteps; k++) {
+    aceptados = aceptados + step(parts, pauli, params);
+  }
+  return aceptados;
+}
 
-int muestrear_impulsos(struct Particles *parts, struct Pauli *pauli, struct Externos *params, int Nsamp, int factor){
+
+int muestrear_impulsos(char *filename, struct Particles *parts, struct Pauli *pauli, struct Externos *params, int Nsamp, int factor){
   // Termalizacion
   for(int l = 0; l < 10*factor*parts->n; l++){
     step(parts, pauli, params);
   }
   // Muestreo
-  char filename[255];
-  sprintf(filename, "impulsos/impulsos_mx100_Lx1.25_%f.txt", params->T);
   printf("%s\n", filename);
   FILE *f = fopen(filename, "w");
   for(int k = 0; k < Nsamp; k++){
@@ -270,7 +276,8 @@ int main(){
 
 // Particulas
   struct Particles parts;
-  parts.n = 1000;
+  int N = 13;
+  parts.n = N*N*N;
   parts.mass = 1.043916 * 100; // Masa protón, MeV*(10^-22 s/fm)^2
   parts.q = (float *) malloc(3*parts.n*sizeof(float));
   parts.p = (float *) malloc(3*parts.n*sizeof(float));
@@ -285,18 +292,21 @@ int main(){
   pauli.qo = 2.067; // fm
   pauli.po = 6; // MeV*10^-22 s/fm
   pauli.D = 34.32*pow(h_barra/(pauli.po*pauli.qo), 3); // MeV
-  pauli.scut2 = 10; // Un ~0.7% del máximo
-  //pauli.scut2 = 6; // Un ~4.98% del máximo
+  //pauli.scut2 = 10; // Un ~0.7% del máximo
+  pauli.scut2 = 6; // Un ~4.98% del máximo
   pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
 
 // Parametros
   struct Externos params;
   //params.L = 40; // fm ; mayor a 2*qo*scut
   //params.L = 30; // fm ; mayor a 2*qo*scut
-  params.L = 50; // fm ; mayor a 2*qo*scut
-  params.T = 30; // MeV
+  //params.L = 50; // fm ; mayor a 2*qo*scut
+  params.L = 4*N; // fm ; mayor a 2*qo*scut
+  params.T = 3; // MeV
   params.delta_q = 3; // fm
   params.delta_p = 1; // MeV*10^-22 s/fm
+
+  char filename[255];
 
 // Inicializacion
   srand(0);
@@ -305,45 +315,74 @@ int main(){
   energia(&parts, &pauli, params.L);
 
 
-  for (int k = 0; k < 6; k++) {
-    params.T = 30 - 5*k;
-    muestrear_impulsos(&parts, &pauli, &params, 100, 1);
-  }
-  save_checkpoint("checkpoint_mx100_Lx1.25_5.txt", &parts, &pauli, &params);
+// Distribucion de un solo T
+/*
   for (int k = 0; k < 6; k++) {
     params.T = 3 - 0.5*k;
-    muestrear_impulsos(&parts, &pauli, &params, 100, 1);
+    N_steps(&parts, &pauli, &params, parts.n*10);
   }
-  save_checkpoint("checkpoint_mx100_Lx1.25_0,5.txt", &parts, &pauli, &params);
   for (int k = 0; k < 6; k++) {
     params.T = 0.3 - 0.05*k;
-    muestrear_impulsos(&parts, &pauli, &params, 200, 3);
+    N_steps(&parts, &pauli, &params, parts.n*10);
   }
-  save_checkpoint("checkpoint_mx100_Lx1.25_0,05.txt", &parts, &pauli, &params);
   for (int k = 0; k < 6; k++) {
     params.T = 0.03 - 0.005*k;
-    muestrear_impulsos(&parts, &pauli, &params, 200, 3);
+    N_steps(&parts, &pauli, &params, parts.n*10);
   }
-  save_checkpoint("checkpoint_mx100_Lx1.25_0,005.txt", &parts, &pauli, &params);
-  for (int k = 0; k < 6; k++) {
+  for (int k = 0; k < 5; k++) {
     params.T = 0.003 - 0.0005*k;
-    muestrear_impulsos(&parts, &pauli, &params, 400, 10);
+    N_steps(&parts, &pauli, &params, parts.n*10);
   }
-  save_checkpoint("checkpoint_mx100_Lx1.25_0,0005.txt", &parts, &pauli, &params);
-  for (int k = 0; k < 6; k++) {
-    params.T = 0.0003 - 0.00005*k;
-    muestrear_impulsos(&parts, &pauli, &params, 400, 10);
-  }
-  save_checkpoint("checkpoint_mx100_Lx1.25_0,00005.txt", &parts, &pauli, &params);
-
-/*
-  load_checkpoint("checkpoint_mx1000_0,00005.txt", &parts, &pauli, &params);
-  for (int k = 0; k < 6; k++) {
-    params.T = 0.00003 - 0.000005*k;
-    muestrear_impulsos(&parts, &pauli, &params, 1000, 10);
-  }
-  save_checkpoint("checkpoint_mx1000_0,000005.txt", &parts, &pauli, &params);
+  params.T = 0.0005;
+  sprintf(filename, "FD_fit/FD_fit_n=8_%f.txt", params->T);
+  muestrear_impulsos(filename, &parts, &pauli, &params, 1000, 10);
 */
+// Distribucion de muchos T
+/*
+  for (int k = 0; k < 4; k++) {
+    params.T = 1 - 0.25*k;
+    sprintf(filename, "FD_fit/distribucion_rho0_%f.txt", params.T);
+    muestrear_impulsos(filename, &parts, &pauli, &params, 1000, 2);
+  }
+  //save_checkpoint("checkpoint_mx100_Lx1.25_0,5.txt", &parts, &pauli, &params);
+  for (int k = 0; k < 6; k++) {
+    params.T = 0.1 - 0.025*k;
+    sprintf(filename, "FD_fit/distribucion_rho0_%f.txt", params.T);
+    muestrear_impulsos(filename, &parts, &pauli, &params, 1000, 2);
+  }
+  //save_checkpoint("checkpoint_mx100_Lx1.25_0,05.txt", &parts, &pauli, &params);
+  for (int k = 0; k < 6; k++) {
+    params.T = 0.01 - 0.0025*k;
+    sprintf(filename, "FD_fit/distribucion_rho0_%f.txt", params.T);
+    muestrear_impulsos(filename, &parts, &pauli, &params, 1000, 2);
+  }
+  //save_checkpoint("checkpoint_mx100_Lx1.25_0,005.txt", &parts, &pauli, &params);
+  for (int k = 0; k < 6; k++) {
+    params.T = 0.001 - 0.00025*k;
+    sprintf(filename, "FD_fit/distribucion_rho0_%f.txt", params.T);
+    muestrear_impulsos(filename, &parts, &pauli, &params, 1000, 2);
+  }
+  //save_checkpoint("checkpoint_mx100_Lx1.25_0,0005.txt", &parts, &pauli, &params);
+  for (int k = 0; k < 6; k++) {
+    params.T = 0.0001 - 0.00005*k;
+    sprintf(filename, "FD_fit/distribucion_rho0_%f.txt", params.T);
+    muestrear_impulsos(filename, &parts, &pauli, &params, 1000, 2);
+  }
+  //save_checkpoint("checkpoint_mx100_Lx1.25_0,00005.txt", &parts, &pauli, &params);
+*/
+// Distribucion de muchos T (logscale)
+  int N_temp = 10;
+  float log10_Tsup = 0;
+  float log10_Tinf = -4;
+  float delta_log = (log10_Tsup - log10_Tinf)/(N_temp - 1);
+  for (int k = 0; k < N_temp; k++) {
+    params.T = pow(10, log10_Tsup - k*delta_log);
+    sprintf(filename, "FD_fit/distribucion_rho0_%f.txt", params.T);
+    muestrear_impulsos(filename, &parts, &pauli, &params, 1000, 2);
+  }
+
+
+
   free(parts.q);
   free(parts.p);
   return 0;
