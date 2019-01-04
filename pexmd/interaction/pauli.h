@@ -15,4 +15,7 @@ float gorces(float *x, float *p, long int* pairs, long int npairs,
 
 float fgorces(float *x, float *p, long int* pairs, long int npairs,
           float D, float qo, float po, float scut, float *force, float *gorce);
+
+float fgorces_PBC(float *x, float *p, long int* pairs, long int npairs,
+  float D, float qo, float po, float scut, float *force, float *gorce, float L);
 #endif
