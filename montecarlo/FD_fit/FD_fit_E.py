@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.pylab as plt
-import scipy.optimize as sc
+#import scipy.optimize as sc
 import itertools as it
 import ctypes as ct
 import sys
 import glob
+plt.ion()
 
 m = 1.043916 * 100
 h_bar =  6.582119
@@ -38,7 +39,7 @@ V = L**3
 deg = lambda E: 4*np.pi*np.sqrt(2*m**3*E)*(L/h)**3
 long_term = lambda T: (2*np.pi*h_bar**2/(m*T))**0.5
 Ef = h_bar**2/(2*m)*(6*np.pi**2*N/V)**(2/3)
-
+"""
 data = np.loadtxt("LUT_F32.txt")
 z = data[0,:]
 F32 = data[1,:]
@@ -57,7 +58,7 @@ def mu(Y, T):
         sup = med
     m = (F32[inf+1]-F32[inf])/(z[inf+1]-z[inf])
     return np.log(z[inf]+(Y-F32[inf])/m)*T
-
+"""
 pauli = ct.CDLL('../../pexmd/interaction/pauli.so')
 
 paulifgorces_c = pauli.fgorces_PBC
@@ -77,6 +78,17 @@ def fgorces(x, p):
   gorcep = gorce.ctypes.data_as(ct.c_voidp)
   energ = paulifgorces_c(xp, pp, pairsp, len(pairs), D, qo, po, scut, forcep, gorcep, L)
   return force, gorce, energ
+
+def delta_presion(q,p,b):
+  presion = 0
+  N_parts = len(q)//3
+  for i in range(N_parts):
+    for k in range(3):
+      if (L-q[3*i+k]<b):
+        presion += max(0,2*p[3*i+k])
+      if (q[3*i+k]<b):
+        presion += max(0,-2*p[3*i+k])
+  return presion
 
 """
 files_extra = glob.glob("distribucion_"+rho+"_extra_term*")
@@ -104,20 +116,30 @@ ns_q = np.zeros((n_temps, Nbins))
 bins_q = np.zeros((n_temps, Nbins+1))
 E = np.zeros((n_temps, Nbins))
 P = np.zeros(n_temps)
+qp = np.zeros(n_temps)
+pp = np.zeros(n_temps)
+qF = np.zeros(n_temps)
 q = np.zeros((n_temps, Nbins))
 mus = np.zeros(n_temps)
 for k in range(n_temps):
   data_q = []
   data_p = []
   for j in range(10):
+    print(rho+"/distribucion_rep%d_%f.txt" %(j+1, Ts[k]))
     data_aux = np.loadtxt(rho+"/distribucion_rep%d_%f.txt" %(j+1, Ts[k]))
     data_q = np.concatenate([data_q, data_aux[:, 0]])
     data_p = np.concatenate([data_p, data_aux[:, 1]])
   for i in range(200*10):
-    fuerzas = fgorces(data_q[3*N*i:3*N*(i+1)], data_p[3*N*i:3*N*(i+1)])[0]
-    P[k] += np.sum(data_q[3*N*i:3*N*(i+1)]*fuerzas)
-  P[k] = P[k]/(10*200*3*V)
-  P[k] += Ts[k]*N/V
+    fuerzas, guerzas, coso = fgorces(data_q[3*N*i:3*N*(i+1)], data_p[3*N*i:3*N*(i+1)])
+    qp[k] += np.sum(data_p[3*N*i:3*N*(i+1)]*(data_p[3*N*i:3*N*(i+1)]/m-guerzas))
+    pp[k] += np.sum(data_p[3*N*i:3*N*(i+1)]*data_p[3*N*i:3*N*(i+1)]/m)
+    qF[k] += np.sum(data_q[3*N*i:3*N*(i+1)]*fuerzas)
+  """
+  P1[k] = delta_presion(data_q, data_p, 1)/(10*200)
+  P2[k] = delta_presion(data_q, data_p, 2)/(10*200)
+  P5[k] = delta_presion(data_q, data_p, 5)/(10*200)
+  P10[k] = delta_presion(data_q, data_p, 10)/(10*200)
+  P15[k] = delta_presion(data_q, data_p, 15)/(10*200)
   data = np.zeros(len(data_p)//3)
   for i in range(len(data_p)//3):
     data[i] = np.sum(data_p[3*i:3*i+3]**2)/(2*m)
@@ -126,6 +148,7 @@ for k in range(n_temps):
   ns[k, :] = ns[k, :]/(bins[k, 1]-bins[k, 0])
   ns_q[k, :] = ns_q[k, :]/(bins_q[k, 1]-bins_q[k, 0])
 
+
 ns = ns/(10*200)
 ns_q = ns_q/(10*3*200)
 N_max = np.max(ns)
@@ -133,7 +156,7 @@ N_max = np.max(ns)
 MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
 FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
 
-plt.ion()
+
 plt.figure()
 for k in range(0,n_temps):
   E[k,:] = (bins[k,1:] + bins[k,:-1])/2
@@ -157,9 +180,14 @@ for k in range(n_temps):
   plt.plot(q[k,:],  ns_q[k,:], "ko")
   plt.axis([0, 60, 0, 100])
   plt.text((min(q[k,:])+ 5*max(q[k,:]))/6, 1.25*max(ns_q[k,:]), "T=%f" %(Ts[k]))
+"""
 plt.figure()
 plt.plot(Ts, P, "ro-")
-plt.plot(Ts, N*Ts/V, "b--")
+plt.plot(Ts, Ts*N/V, "b--")
+plt.xlabel('Temperatura')
+plt.ylabel('Presion')
+plt.legend(['Pauli', 'Boltzmann'])
+plt.title(r'$\rho = 0.0156fm^{-3}$')
 plt.show()
 
 """
