@@ -206,24 +206,23 @@ int N_steps(struct Particles *parts, struct Pauli *pauli, struct Externos *param
 }
 
 
-int muestrear_impulsos(char *filename, struct Particles *parts, struct Pauli *pauli, struct Externos *params, int Nsamp, int factor){
+int muestrear_impulsos(char *filename, struct Particles *parts, struct Pauli *pauli, struct Externos *params, int Nsamp, int factor, int factor_term){
   // Termalizacion
-  for(int l = 0; l < 100*parts->n; l++){
+  printf("%s\n", filename);
+  for(int l = 0; l < factor_term*parts->n; l++){
     step(parts, pauli, params);
   }
   // Muestreo
-  printf("%s\n", filename);
   FILE *f = fopen(filename, "w");
+  int aceptados = 0;
   for(int k = 0; k < Nsamp; k++){
-    for(int l = 0; l < factor*parts->n; l++){
-      step(parts, pauli, params);
-    }
+    aceptados = aceptados + N_steps(parts, pauli, params, factor*parts->n);
     for(int l = 0; l < 3*parts->n; l++){
-      fprintf(f, "%f ", parts->p[l]);
+      fprintf(f, "%f %f\n", parts->q[l], parts->p[l]);
     }
   }
   fclose(f);
-  return 0;
+  return aceptados;
 }
 
 int save_checkpoint(char *filename, struct Particles *parts, struct Pauli *pauli, struct Externos *params){
@@ -277,7 +276,7 @@ int main(){
 
 // Particulas
   struct Particles parts;
-  int N = 13;
+  int N = 10;
   parts.n = N*N*N;
   parts.mass = 1.043916 * 100; // Masa protón, MeV*(10^-22 s/fm)^2
   parts.q = (float *) malloc(3*parts.n*sizeof(float));
@@ -302,13 +301,13 @@ int main(){
   //params.L = 40; // fm ; mayor a 2*qo*scut
   //params.L = 30; // fm ; mayor a 2*qo*scut
   //params.L = 50; // fm ; mayor a 2*qo*scut
-  params.L = 2*N*pauli.qo; // fm ; mayor a 2*qo*scut
-  params.T = 3; // MeV
-  params.delta_q = 3; // fm
-  params.delta_p = 1; // MeV*10^-22 s/fm
+  params.L = 2*N*pauli.qo/3; // fm ; mayor a 2*qo*scut
+  params.T = 525; // MeV
+  params.delta_q = pauli.qo/2; // fm
+  params.delta_p = pauli.po/2; // MeV*10^-22 s/fm
 
   char filename[255];
-
+/*
 // Inicializacion
   srand(0);
   set_box(&parts, params.L);
@@ -317,52 +316,118 @@ int main(){
   printf("%f\n", parts.kinetic/(1.5*parts.n));
   printf("%f\n", parts.energy - parts.kinetic);
   printf("%f\n", parts.kinetic);
-
+*/
+/*
   FILE *f = fopen("prueba_boltzmann.txt", "w");
   for(int i = 0; i < 10000; i++){
     float p = boltzmann(sqrt(params.T*parts.mass));
     fprintf(f, "%f ", p);
   }
   fclose(f);
-
+*/
 /*
 // Distribucion de muchos T (linscale + logscale)
   clock_t start, end;
   double time;
   int factor = 2;
   int Nsamp = 200;
-  int N_temp_lin = 14;
-  float lin_Tsup = 30;
+  int N_temp_lin = 4;
+  float lin_Tsup = 7;
   float lin_Tinf = 4;
   float delta_lin = (lin_Tsup - lin_Tinf)/(N_temp_lin - 1);
+  params.T = lin_Tsup;
+  set_p(&parts, params.T);
+  energia(&parts, &pauli, params.L);
   printf("Tramo lineal\n");
   for (int k = 0; k < N_temp_lin; k++) {
     start = clock();
-    params.T = lin_Tsup - k*delta_lin/2;
-    N_steps(&parts, &pauli, &params, 100*parts.n);
+    //params.T = lin_Tsup - delta_lin*(k-0.5);
+    //N_steps(&parts, &pauli, &params, 100*parts.n);
     params.T = lin_Tsup - k*delta_lin;
-    sprintf(filename, "FD_fit/distribucion_rho2_%f.txt", params.T);
-    muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor);
+    sprintf(filename, "FD_fit/distribucion_rho0_trial3_%f.txt", params.T);
+    int aceptados = muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor);
     end = clock();
     time = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("%f segundos\n", time);
+    printf("T = %f en %f segundos con %d aceptados (%f)\n", params.T, time, aceptados, ((float) aceptados)/(Nsamp*factor*parts.n));
   }
 
   printf("Tramo logaritimico\n");
-  int N_temp_log = 16;
+  int N_temp_log = 5;
   float log10_Tsup = 0.5;
-  float log10_Tinf = -4.5;
+  float log10_Tinf = -1.5;
   float delta_log = (log10_Tsup - log10_Tinf)/(N_temp_log - 1);
   for (int k = 0; k < N_temp_log; k++) {
     start = clock();
     params.T = pow(10, log10_Tsup - k*delta_log);
-    sprintf(filename, "FD_fit/distribucion_rho2_10E%f.txt", log10_Tsup - k*delta_log);
-    muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor);
+    sprintf(filename, "FD_fit/distribucion_rho0_trial3_10E%f.txt", log10_Tsup - k*delta_log);
+    int aceptados = muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor);
     end = clock();
     time = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("%f segundos\n", time);
+    printf("T = %f en %f segundos con %d aceptados (%f)\n", params.T, time, aceptados, ((float) aceptados)/(Nsamp*factor*parts.n));
   }
-*/
+  */
+  /*
+  // Distribucion de un solo T; muchas realizaciones
+  int factor = 2;
+  int Nsamp = 200;
+  int Nrea = 6;
+  int aceptados;
+  clock_t start, end;
+  double time, time_global;
+  for (int i = 0; i < Nrea; i++) {
+    time_global = 0;
+    params.T = 3;
+    srand(i);
+    set_box(&parts, params.L);
+    set_p(&parts, params.T);
+    energia(&parts, &pauli, params.L);
+    for (int k = 0; k < 5; k++) {
+      params.T = 3 - 0.5*k;
+      start = clock();
+      aceptados = N_steps(&parts, &pauli, &params, parts.n*5000);
+      end = clock();
+      time = ((double) (end - start)) / CLOCKS_PER_SEC;
+      printf("T = %f (%d/5) en %f segundos\n", params.T, k+1, time);
+      time_global = time_global + time;
+    }
+    params.T = 0.5;
+    start = clock();
+    sprintf(filename, "FD_fit/distribucion_rho0_rep%d_%f.txt", i, 0.5);
+    aceptados = muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor);
+    end = clock();
+    time = ((double) (end - start)) / CLOCKS_PER_SEC;
+    time_global = time_global + time;
+    printf("Iteracion %d/%d para T = %f en %f segundos con %d aceptados (%f)\n", i+1, Nrea, params.T, time_global, aceptados, ((float) aceptados)/(Nsamp*factor*parts.n));
+  }
+  */
+  // Distribucion de muchos T; muchas realizaciones
+  clock_t start, end;
+  double time;
+  int factor = 2;
+  int factor_term = 5000;
+  int Nsamp = 200;
+  int Nrep = 10;
+
+  float Ts[9] = {3, 2.5, 2, 1.5, 1.0, 0.5, 0.1, 0.05, 0.01};
+
+  for (int j = 0; j < Nrep; j++) {
+    srand(j);
+    printf("Realizacion %d/%d\n", j+1, Nrep);
+    params.T = Ts[0];
+    set_p(&parts, params.T);
+    energia(&parts, &pauli, params.L);
+    printf("Tramo lineal\n");
+    for (int k = 0; k < 9; k++) {
+      start = clock();
+      params.T = Ts[k];
+      sprintf(filename, "FD_fit/rho0/distribucion_13_rep%d_%f.txt", j+1, params.T);
+      int aceptados = muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
+      end = clock();
+      time = ((double) (end - start)) / CLOCKS_PER_SEC;
+      printf("T = %f en %f segundos con %d aceptados (%f)\n", params.T, time, aceptados, ((float) aceptados)/(Nsamp*factor*parts.n));
+    }
+  }
+
   // Distribucion de un solo T
   /*
     for (int k = 0; k < 6; k++) {
@@ -385,6 +450,7 @@ int main(){
     sprintf(filename, "FD_fit/FD_fit_n=8_%f.txt", params->T);
     muestrear_impulsos(filename, &parts, &pauli, &params, 1000, 10);
   */
+
   // Distribucion de muchos T
   /*
     for (int k = 0; k < 4; k++) {

@@ -18,8 +18,8 @@ if (nargs >= 3):
 if (nargs >= 4):
   Nbins = int(sys.argv[3])
 
-files = glob.glob("distribucion_"+rho+"_*")
-Ts = [f.split("_")[2][:-4] for f in files]
+files = glob.glob("distribucion_"+rho+"_ideal_*")
+Ts = [f.split("_")[3][:-4] for f in files]
 n_temps = len(Ts)
 
 for k in range(n_temps):
@@ -35,50 +35,58 @@ ns = np.zeros((n_temps, Nbins))
 bins = np.zeros((n_temps, Nbins+1))
 p = np.zeros((n_temps, Nbins))
 for k in range(n_temps):
-  data = np.loadtxt(files[k])
-  ns[k, :], bins[k, :] = np.histogram(abs(data), Nbins)
+  data_aux = np.loadtxt(files[k])
+  data = np.zeros(len(data_aux)/3)
+  for i in range(int(len(data_aux)/3)):
+    data[i] = np.sum(data_aux[3*i:3*i+3]**2)
+
+  ns[k, :], bins[k, :] = np.histogram(data, Nbins)
 
 N_max = np.max(ns)
+N_maxs = np.max(ns, axis=1)
 
 if (tipo == "v"):
   plt.figure()
   for k in range(n_temps):
     if (n_temps > 1):
-      plt.subplot(n_temps/2, 2, k+1)
+      plt.subplot(n_temps/3, 3, k+1)
     plt.xlabel(r"$p$")
-    plt.hist(abs(data), Nbins)
-    plt.text((min(abs(data))+ 5*max(abs(data)))/6, 0.9*max(ns[k,:]), "T=%f" %(Ts[k]))
+    plt.hist(data, Nbins)
+    plt.text((min(data)+ 5*max(data))/6, 0.9*max(ns[k,:]), "T=%f" %(Ts[k]))
   plt.show()
 
 if (tipo == "f" or tipo == 'f&v'):
+  MB = lambda x, A, mum, Tm: A*np.exp(-0.5*x**2/Tm)
   FD = lambda x, A, mum, Tm: A/(np.exp((0.5*x**2-mum)/Tm)+1)
   As = np.zeros(n_temps)
   mums = np.zeros(n_temps)
   Tms = np.zeros(n_temps)
   for k in range(n_temps):
     p[k,:] = (bins[k,1:] + bins[k,:-1])/2
-    params, coso = sc.curve_fit(FD, p[k,:], ns[k,:], [N_max, 0, 10], bounds = ([0,0,0],[np.inf,np.inf,np.inf]))
+    params, coso = sc.curve_fit(FD, p[k,:], ns[k,:], [10, 0, Ts[k]*m], bounds = ([0,-np.inf,0],[8*N_max,np.inf,np.inf]))
     As[k] = params[0]
     mums[k] = params[1]
     Tms[k] = params[2]
 
   if(tipo == 'f&v'):
     plt.figure()
-    for k in range(n_temps):
+    for k in range(0,n_temps-1,5):
       if (n_temps > 1):
-        plt.subplot(n_temps/3, 3, k+1)
+        plt.subplot(n_temps/(5*2), 2, k/5+1)
       plt.xlabel(r"$p$")
       plt.plot(p[k,:],  ns[k,:], "ko")
       plt.plot(np.linspace(p[k,0], p[k,-1], 1000),  FD(np.linspace(p[k,0], p[k,-1], 1000), As[k], mums[k], Tms[k]), "b-")
-      plt.text((min(abs(data))+ 5*max(abs(data)))/6, 0.9*max(ns[k,:]), "T=%f" %(Ts[k]))
+      plt.text((min(data)+ 5*max(data))/6, 0.9*max(ns[k,:]), "T=%f" %(Ts[k]))
     plt.figure()
     plt.plot(Ts, Tms/m, "bo--")
     plt.plot(Ts, Ts, "r-")
     plt.xlabel(r"$T$")
     plt.ylabel(r"$T_{FD}$")
     plt.figure()
-    plt.semilogx(Ts, mums/m, "bo--")
+    #plt.semilogx(Ts, mums/m, "bo--")
+    plt.plot(Ts, mums/m, "bo--")
     plt.xlabel(r"$T$")
     plt.ylabel(r"$\mu_{FD}$")
+    print(Tms/(Ts*m))
     plt.show()
     np.savetxt('data_'+rho+'.txt', [Ts, Tms, mums, As])
