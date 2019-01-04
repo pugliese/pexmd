@@ -414,6 +414,7 @@ int main(){
     srand(j);
     printf("Realizacion %d/%d\n", j+1, Nrep);
     params.T = Ts[0];
+    set_box(&parts, params.L);
     set_p(&parts, params.T);
     energia(&parts, &pauli, params.L);
     printf("Tramo lineal\n");
