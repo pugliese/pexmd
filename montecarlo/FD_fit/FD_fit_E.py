@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pylab as plt
-#import scipy.optimize as sc
 import itertools as it
 import ctypes as ct
 import sys
@@ -38,7 +37,78 @@ if (rho[-1] == "1"):
   L = L/2
 V = L**3
 
-if (tipo=="f&v"):
+files = glob.glob(rho+"/distribucion_10_rep1_*")
+Ts = [f.split("_")[3][:-4] for f in files]
+n_temps = len(Ts)
+
+for k in range(n_temps):
+  if Ts[k][2]== "E":
+    Ts[k] = 10**float(Ts[k][3:])
+  else:
+    Ts[k] = float(Ts[k])
+idxs = np.argsort(Ts)
+Ts = np.array([Ts[i] for i in idxs])
+files = [files[i] for i in idxs]
+
+pressure = ct.CDLL('../pressure.so')
+
+if (tipo == "a"):
+
+  pressure_c = pressure.pressure_pauli_PBC
+  pressure_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.c_float,
+                       ct.c_float, ct.c_float, ct.c_float, ct.c_voidp, ct.c_voidp, ct.c_float]
+  pressure_c.restype = ct.c_float
+
+  pairs = np.array(list(it.combinations(range(N), 2)), dtype=np.int64)
+  def pressure(x, p):
+    energ = 0
+    force = np.zeros_like(x, dtype=np.float32)
+    gorce = np.zeros_like(x, dtype=np.float32)
+    xp = x.ctypes.data_as(ct.c_voidp)
+    pp = p.ctypes.data_as(ct.c_voidp)
+    pairsp = pairs.ctypes.data_as(ct.c_voidp)
+    forcep = force.ctypes.data_as(ct.c_voidp)
+    gorcep = gorce.ctypes.data_as(ct.c_voidp)
+    qF = pressure_c(xp, pp, pairsp, len(pairs), D, qo, po, scut, forcep, gorcep, L)
+    return force, gorce, qF
+
+
+  P = np.zeros(n_temps)
+  qp = np.zeros(n_temps)
+  pp = np.zeros(n_temps)
+  qF = np.zeros(n_temps)
+
+
+  for k in range(n_temps):
+    data_q = np.array([], dtype=np.float32)
+    data_p = np.array([], dtype=np.float32)
+    for j in range(Nreps):
+      data_aux = np.loadtxt(rho+"/distribucion_10_rep%d_%f.txt" %(j+1, Ts[k]), dtype=np.float32)
+      data_q = np.concatenate([data_q, data_aux[:, 0]])
+      data_p = np.concatenate([data_p, data_aux[:, 1]])
+    """
+    for i in range(Nsamp*Nreps):
+      fuerzas, guerzas, qF_aux = pressure(data_q[3*N*i:3*N*(i+1)], data_p[3*N*i:3*N*(i+1)])
+      qp[k] += np.sum(data_p[3*N*i:3*N*(i+1)]*(data_p[3*N*i:3*N*(i+1)]/m-guerzas))/(3*V*Nsamp*Nreps)
+      qF[k] += qF_aux/(3*V*Nsamp*Nreps)
+    P[k] = qF[k] + qp[k]
+    """
+    data = np.zeros(len(data_p)//3)
+    for i in range(len(data_p)//3):
+      data[i] = np.sum(data_p[3*i:3*i+3]**2)/(2*m)
+    ns, bins = np.histogram(data, Nbins)
+    ns_q, bins_q = np.histogram(data_q, Nbins)
+    ns = ns/((bins[1]-bins[0])*Nreps*Nsamp)
+    ns_q = ns_q/((bins_q[1]-bins_q[0])*3*Nreps*Nsamp)
+    E = (bins[1:] + bins[:-1])/2
+    filename = rho+"/histograma_%d_T=%f.txt" %(Nbins, Ts[k])
+    print(filename)
+    np.savetxt(filename, [E, ns])
+
+  #np.savetxt(rho+"/presiones_N=1000.txt", [Ts,P])
+
+if (tipo == "f&v"):
+
   deg = lambda E: 4*np.pi*np.sqrt(2*m**3*E)*(L/h)**3
   long_term = lambda T: (2*np.pi*h_bar**2/(m*T))**0.5
   Ef = h_bar**2/(2*m)*(6*np.pi**2*N/V)**(2/3)
@@ -62,41 +132,126 @@ if (tipo=="f&v"):
       m = (F32[inf+1]-F32[inf])/(z[inf+1]-z[inf])
       return np.log(z[inf]+(Y-F32[inf])/m)*T
 
-  pauli = ct.CDLL('../pressure.so')
+  MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
+  FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
 
-  pressure_c = pauli.pressure_pauli_PBC
-  pressure_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.c_float,
-                       ct.c_float, ct.c_float, ct.c_float, ct.c_voidp, ct.c_voidp, ct.c_float]
-  pressure_c.restype = ct.c_float
+  seleccion = [0, 2, 4, 6, 8, 10, 12, 14, 16]
+
+  mus = np.zeros(len(seleccion))
+  i = 0
+  plt.figure()
+  for k in seleccion:
+    data = np.loadtxt(rho+"/histograma_%d_T=%f.txt" %(Nbins, Ts[k]))
+    E = data[0,:]
+    ns = data[1,:]
+    if (n_temps > 1):
+      plt.subplot(3, 3, i+1)
+    plt.xlabel(r"$E$")
+    plt.plot(E,  ns, "ko")
+    #plt.text((min(E)+ 5*max(E))/6, 0.9*max(ns), "T=%f" %(Ts[k]))
+    plt.text(1, 1700, "T=%f" %(Ts[k]))
+    rango = np.linspace(0, E[-1], 1000)
+    exacto_MB = MB(rango, Ts[k])
+    plt.plot(rango, exacto_MB, "r-")
+    mus[i] = mu(long_term(Ts[k])**3*N/V, Ts[k])
+    exacto_FD = FD(rango, mus[i], Ts[k])
+    plt.plot(rango, exacto_FD, "k--")
+    plt.axis([0, 2, 0, 2500])
+    i+=1
+
+  plt.show()
+
+if (tipo == "p"):
+
+  deg = lambda E: 4*np.pi*np.sqrt(2*m**3*E)*(L/h)**3
+  long_term = lambda T: (2*np.pi*h_bar**2/(m*T))**0.5
+  Ef = h_bar**2/(2*m)*(6*np.pi**2*N/V)**(2/3)
+
+  data = np.loadtxt("LUT_F32.txt")
+  z32 = data[0,:]
+  F32 = data[1,:]
+
+  def mu(T, V):
+    Ef = h_bar**2/(2*m)*(6*np.pi**2*N/V)**(2/3)
+    Y = long_term(T)**3*N/V
+    if (30<=Y):
+      return Ef*(1-np.pi**2/12*(T/Ef)**2)
+    else:
+      inf = 0
+      sup = len(z32)-1
+      while (inf<sup-1):
+        med = (inf+sup)//2
+        if(F32[med]<Y):
+          inf = med
+        else:
+          sup = med
+      pend = (F32[inf+1]-F32[inf])/(z32[inf+1]-z32[inf])
+      return np.log(z32[inf]+(Y-F32[inf])/pend)*T
+
+  data = np.loadtxt("LUT_F52.txt")
+  z52 = data[0,:]
+  F52 = data[1,:]
+
+  def Pres(T,V):
+    Ef = h_bar**2/(2*m)*(6*np.pi**2*N/V)**(2/3)
+    Y = long_term(T)**3*N/V
+    if (30<=Y):
+      return .4*(N/V)*Ef*(1-5*np.pi**2/12*(T/Ef)**2)
+    else:
+      z = np.exp(mu(T, V)/T)
+      inf = 0
+      sup = len(z52)-1
+      while (inf<sup-1):
+        med = (inf+sup)//2
+        if(z52[med]<z):
+          inf = med
+        else:
+          sup = med
+      pend = (F52[inf+1]-F52[inf])/(z52[inf+1]-z52[inf])
+      return (pend*(z-z52[inf])+F52[inf])*T/long_term(T)**3
+
+  rhos = ['rho0', 'rho1', 'rho2']
+  forma = ['sr--', '^b--', 'og--']
+  V = (12*10*np.array([1/3,1/2,1]))**3
+  i = 0
+  rango_T = np.linspace(min(Ts), max(Ts), 1000)
+  for rho in rhos:
+    data = np.loadtxt(rho+'/presiones_N=1000.txt')
+    Ts = data[0,:]
+    P = data[1,:]
+    plt.plot(Ts, P*V[i]/N, forma[i])
+    plt.plot(rango_T, [Pres(T,V[i])*V[i]/N for T in rango_T], forma[i][1:-1])
+    i += 1
+  plt.plot(Ts, Ts, "k-")
+  plt.xlabel(r"$T$")
+  plt.ylabel(r"$P/\rho$")
+  plt.legend([r"$\rho = 0.015625fm^{-3}$", r"FD $\rho = 0.015625fm^{-3}$", r"$\rho = 0.00462963fm^{-3}$", r"FD $\rho = 0.00462963fm^{-3}$", r"$\rho = 0.0005787fm^{-3}$", r"FD $\rho = 0.0005787fm^{-3}$", "Boltzmann"], loc=9)
+  plt.show()
+
+
+if(tipo == 'e'):
+
+  deltas_c = pressure.delta_fases
+  deltas_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong,
+                        ct.c_voidp, ct.c_voidp, ct.c_float]
+  deltas_c.restype = ct.c_float
 
   pairs = np.array(list(it.combinations(range(N), 2)), dtype=np.int64)
-  def pressure(x, p):
-    energ = 0
-    force = np.zeros_like(x, dtype=np.float32)
-    gorce = np.zeros_like(x, dtype=np.float32)
+  p = len(pairs)
+  def deltas(x, p):
+    dq = np.zeros(len(pairs), dtype=np.float32)
+    dp = np.zeros(len(pairs), dtype=np.float32)
     xp = x.ctypes.data_as(ct.c_voidp)
     pp = p.ctypes.data_as(ct.c_voidp)
     pairsp = pairs.ctypes.data_as(ct.c_voidp)
-    forcep = force.ctypes.data_as(ct.c_voidp)
-    gorcep = gorce.ctypes.data_as(ct.c_voidp)
-    qF = pressure_c(xp, pp, pairsp, len(pairs), D, qo, po, scut, forcep, gorcep, L)
-    return force, gorce, qF
-
-  def delta_presion(q,p,b):
-    presion = 0
-  	N_parts = len(q)//3
-  	for i in range(N_parts):
-      for k in range(3):
-        if (L-q[3*i+k]<b):
-          presion += max(0,2*p[3*i+k])
-        if (q[3*i+k]<b):
-          presion += max(0,-2*p[3*i+k])
-    return presion
+    dq_p = dq.ctypes.data_as(ct.c_voidp)
+    dp_p = dp.ctypes.data_as(ct.c_voidp)
+    deltas_c(xp, pp, pairsp, len(pairs), dq_p, dp_p, L)
+    return dq, dp
 
   files = glob.glob(rho+"/distribucion_10_rep1_*")
   Ts = [f.split("_")[3][:-4] for f in files]
   n_temps = len(Ts)
-
   for k in range(n_temps):
     if Ts[k][2]== "E":
       Ts[k] = 10**float(Ts[k][3:])
@@ -106,98 +261,31 @@ if (tipo=="f&v"):
   Ts = np.array([Ts[i] for i in idxs])
   files = [files[i] for i in idxs]
 
-  ns = np.zeros((n_temps, Nbins))
-  bins = np.zeros((n_temps, Nbins+1))
-  ns_q = np.zeros((n_temps, Nbins))
-  bins_q = np.zeros((n_temps, Nbins+1))
-  E = np.zeros((n_temps, Nbins))
-  P = np.zeros(n_temps)
-  qp = np.zeros(n_temps)
-  pp = np.zeros(n_temps)
-  qF = np.zeros(n_temps)
-  mus = np.zeros(n_temps)
-  for k in range(n_temps):
+  seleccion = [0, 4, 8]
+
+  dq = np.zeros(p*Nsamp*Nreps)
+  dp = np.zeros(p*Nsamp*Nreps)
+  for k in seleccion:
     data_q = np.array([], dtype=np.float32)
     data_p = np.array([], dtype=np.float32)
     for j in range(Nreps):
       data_aux = np.loadtxt(rho+"/distribucion_10_rep%d_%f.txt" %(j+1, Ts[k]), dtype=np.float32)
       data_q = np.concatenate([data_q, data_aux[:, 0]])
       data_p = np.concatenate([data_p, data_aux[:, 1]])
+    plt.figure()
     for i in range(Nsamp*Nreps):
-      fuerzas, guerzas, qF_aux = pressure(data_q[3*N*i:3*N*(i+1)], data_p[3*N*i:3*N*(i+1)])
-      qp[k] += np.sum(data_p[3*N*i:3*N*(i+1)]*(data_p[3*N*i:3*N*(i+1)]/m-guerzas))/(3*V*Nsamp*Nreps)
-      qF[k] += qF_aux/(3*V*Nsamp*Nreps)
-    P[k] = qF[k] + qp[k]
-    data = np.zeros(len(data_p)//3)
-    print(k+1)
-    for i in range(len(data_p)//3):
-      data[i] = np.sum(data_p[3*i:3*i+3]**2)/(2*m)
-    ns[k, :], bins[k, :] = np.histogram(data, Nbins)
-    ns_q[k, :], bins_q[k, :] = np.histogram(data_q, Nbins)
-    ns[k, :] = ns[k, :]/(bins[k, 1]-bins[k, 0])
-    ns_q[k, :] = ns_q[k, :]/(bins_q[k, 1]-bins_q[k, 0])
-
-
-  ns = ns/(Nreps*Nsamp)
-  ns_q = ns_q/(Nreps*3*Nsamp)
-  N_max = np.max(ns)
-
-  MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
-  FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
-
-  seleccion = [0, 2, 4, 6, 8, 10, 12, 14, 16]
-  i = 0
-
-  plt.figure()
-  for k in seleccion:
-    i+=1
-    E[k,:] = (bins[k,1:] + bins[k,:-1])/2
-    if (n_temps > 1):
-      plt.subplot(3, 3, i)
-    plt.xlabel(r"$E$")
-    plt.plot(E[k,:],  ns[k,:], "ko")
-    plt.text((min(E[k,:])+ 5*max(E[k,:]))/6, 0.9*max(ns[k,:]), "T=%f" %(Ts[k]))
-    rango = np.linspace(0, E[k,-1], 1000)
-    exacto_MB = MB(rango, Ts[k])
-    plt.plot(rango, exacto_MB, "r-")
-    mus[k] = mu(long_term(Ts[k])**3*N/V, Ts[k])
-    exacto_FD = FD(rango, mus[k], Ts[k])
-    plt.plot(rango, exacto_FD, "k--")
-  """
-  plt.figure()
-  for k in range(n_temps):
-    q[k,:] = (bins_q[k,1:] + bins_q[k,:-1])/2
-    if (n_temps > 1):
-      plt.subplot(n_temps/3, 3, k+1)
-    plt.xlabel(r"$q$")
-    plt.plot(q[k,:],  ns_q[k,:], "ko")
-    plt.axis([0, 60, 0, 100])
-    plt.text((min(q[k,:])+ 5*max(q[k,:]))/6, 1.25*max(ns_q[k,:]), "T=%f" %(Ts[k]))
-  """
-  np.savetxt(rho+"/presiones_N=1000.txt", [Ts,P])
-  plt.figure()
-  plt.plot(Ts, P*V/N, "ro-")
-  plt.plot(Ts, Ts, "k--")
-  plt.legend(['Pauli','Boltzmann'], loc=9)
-  plt.xlabel(r"$T$")
-  plt.ylabel(r"$P/\rho$")
+      dq[p*i:p*(i+1)], dp[p*i:p*(i+1)] = deltas(data_q[3*N*i:3*N*(i+1)], data_p[3*N*i:3*N*(i+1)])
+      #plt.plot(dq, dp, 'b.')
+    heatmap, xedges, yedges = np.histogram2d(dq, dp, bins=50)
+    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    plt.clf()
+    plt.imshow(heatmap.T, extent=extent, origin='lower')
+    plt.xlabel(r'$\Delta q$')
+    plt.ylabel(r'$\Delta p$')
+    plt.title(r'$T=%1.4fMeV$' %(Ts[k]))
   plt.show()
 
-if (tipo=="p"):
-  rhos = ['rho0', 'rho1', 'rho2']
-  V = (12*10*np.array([1/3,1/2,1]))**3
-  i = 0
-  for rho in rhos:
-    data = np.loadtxt(rho+'/presiones_N=1000.txt')
-    Ts = data[0,:]
-   P = data[1,:]
-   plt.plot(Ts, P*V[i]/N, "o--")
-   i += 1
-  plt.plot(Ts, Ts, "-")
-  plt.xlabel(r"$T$")
-  plt.ylabel(r"$P/\rho$")
-  plt.legend([r"$\rho = 0.015625fm^{-3}$", r"$\rho_1 = 0.00462963fm^{-3}$", r"$\rho_2 = 0.0005787fm^{-3}$", "Boltzmann"], loc=9)
-  plt.show()
+
 
 """
 if (tipo == "v"):
