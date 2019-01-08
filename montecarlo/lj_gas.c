@@ -60,11 +60,10 @@ float distancia(float* q1, float* q2, struct LJ *lj, float L){
 
 float interaction(float *q1, float *q2, struct LJ *lj, float L){
   float pot = 0;
-  float r6 = 0;
   float r2 = distancia(q1, q2, lj, L);
   if (r2 <= lj->rcut2){
-    r6 = r2*r2*r2;
-    pot = 4*(1.0 - 1.0/r6)/r6 - lj->shift;
+    float r6 = r2*r2*r2;
+    pot = 4*(1.0/r6 - 1.0)/r6 - lj->shift;
   }
   return pot;
 }
@@ -73,8 +72,9 @@ int energia(struct Particles *parts, struct LJ *lj, float L){
   float kin = 0;
   float pot = 0;
   for(int k = 0; k < 3*parts->n; k++){
-    kin = kin + 0.5*parts->p[k]*parts->p[k]/parts->mass;
+    kin = kin + parts->p[k]*parts->p[k];
   }
+  kin = 0.5*kin/parts->mass;
   for(int i = 1; i < parts->n; i++){
     float qi[3];
     sub_vector(parts->q, i, qi);
@@ -262,7 +262,7 @@ int main(){
   struct Particles parts;
   int N = 10;
   parts.n = N*N*N;
-  parts.mass = 1.043916 * 100; // Masa protón, MeV*(10^-22 s/fm)^2
+  parts.mass = 1; // Masa protón, MeV*(10^-22 s/fm)^2
   parts.q = (float *) malloc(3*parts.n*sizeof(float));
   parts.p = (float *) malloc(3*parts.n*sizeof(float));
   for(int j = 0; j < 3*parts.n; j++){
@@ -274,14 +274,14 @@ int main(){
   struct LJ lj;
   lj.rcut2 = 10; // Un ~0.7% del máximo
   float rcut6 = lj.rcut2*lj.rcut2*lj.rcut2;
-  lj.shift = 4*(1.0 - 1.0/rcut6)/rcut6;
+  lj.shift = 4*(1.0/rcut6 - 1.0)/rcut6;
 
 // Parametros
   struct Externos params;
-  params.L = 2*N*6.0; // fm ; mayor a 2*qo*rcut
-  params.T = 525; // MeV
-  params.delta_q = 6.0/2; // fm
-  params.delta_p = 2.067/2; // MeV*10^-22 s/fm
+  params.L = 0.983*N; // fm ; mayor a 2*qo*rcut
+  params.T = 2; // MeV
+  params.delta_q = 0.5; // fm
+  params.delta_p = 0.5; // MeV*10^-22 s/fm
 
   char filename[255];
 
@@ -289,24 +289,26 @@ int main(){
   clock_t start, end;
   double time;
   int factor = 2;
-  int factor_term = 500;
-  int Nsamp = 20;
+  int factor_term = 5000;
+  int Nsamp = 200;
   int Nrep = 10;
 
-  float Ts[9] = {3, 2.5, 2, 1.5, 1.0, 0.5, 0.1, 0.05, 0.01};
+  //float Ts[17] = {3, 2.75, 2.5, 2.25, 2, 1.75, 1.5, 1.25, 1.0, 0.75, 0.5, 0.3, 0.1, 0.075, 0.05, 0.03, 0.01};
 
   for (int j = 0; j < Nrep; j++) {
     srand(j);
     printf("Realizacion %d/%d\n", j+1, Nrep);
-    params.T = Ts[0];
+    //params.T = Ts[0];
+    params.T = 2;
     set_box(&parts, params.L);
     set_p(&parts, params.T);
     energia(&parts, &lj, params.L);
     printf("Tramo lineal\n");
-    for (int k = 0; k < 9; k++) {
+    for (int k = 0; k < 16; k++) {
       start = clock();
-      params.T = Ts[k];
-      sprintf(filename, "LJ_fit/rho0/distribucion_10_rep%d_%f.txt", j+1, params.T);
+      //params.T = Ts[k];
+      params.T = 2 - 0.1*k;
+      sprintf(filename, "LJ_fit/rho1/distribucion_10_rep%d_%f.txt", j+1, params.T);
       int aceptados = muestrear_impulsos(filename, &parts, &lj, &params, Nsamp, factor, factor_term);
       end = clock();
       time = ((double) (end - start)) / CLOCKS_PER_SEC;

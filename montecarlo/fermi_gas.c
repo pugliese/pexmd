@@ -66,7 +66,7 @@ float distancia_fases(float* q1, float* q2, float* p1, float* p2, struct Pauli *
 float interaction(float *q1, float *q2, float *p1, float *p2, struct Pauli *pauli, float L){
   float pot = 0;
   float s2 = distancia_fases(q1, q2, p1, p2, pauli, L);
-  if (s2 <= pauli->scut2){
+  if (s2 < pauli->scut2){
     pot = pauli->D*exp(-0.5*s2) - pauli->shift;
   }
   return pot;
@@ -81,7 +81,7 @@ int energia(struct Particles *parts, struct Pauli *pauli, float L){
     sub_vector(parts->q, i, qi);
     sub_vector(parts->p, i, pi);
     for(int k = 0; k < 3; k++){
-      kin = kin + 0.5*pi[k]*pi[k]/parts->mass;
+      kin = kin + pi[k]*pi[k];
     }
     for(int j = 0; j < i; j++){
       float qj[3];
@@ -92,7 +92,7 @@ int energia(struct Particles *parts, struct Pauli *pauli, float L){
     }
   }
   parts->energy = kin + pot;
-  parts->kinetic = kin;
+  parts->kinetic = 0.5*kin/parts->mass;
   return 0;
 }
 
@@ -209,9 +209,7 @@ int N_steps(struct Particles *parts, struct Pauli *pauli, struct Externos *param
 int muestrear_impulsos(char *filename, struct Particles *parts, struct Pauli *pauli, struct Externos *params, int Nsamp, int factor, int factor_term){
   // Termalizacion
   printf("%s\n", filename);
-  for(int l = 0; l < factor_term*parts->n; l++){
-    step(parts, pauli, params);
-  }
+  N_steps(parts, pauli, params, factor_term*parts->n);
   // Muestreo
   FILE *f = fopen(filename, "w");
   int aceptados = 0;
@@ -301,7 +299,7 @@ int main(){
   //params.L = 40; // fm ; mayor a 2*qo*scut
   //params.L = 30; // fm ; mayor a 2*qo*scut
   //params.L = 50; // fm ; mayor a 2*qo*scut
-  params.L = 2*N*pauli.qo/3; // fm ; mayor a 2*qo*scut
+  params.L = 2*N*pauli.qo/1; // fm ; mayor a 2*qo*scut
   params.T = 525; // MeV
   params.delta_q = pauli.qo/2; // fm
   params.delta_p = pauli.po/2; // MeV*10^-22 s/fm
@@ -404,11 +402,11 @@ int main(){
   clock_t start, end;
   double time;
   int factor = 2;
-  int factor_term = 5000;
+  int factor_term = 2500;
   int Nsamp = 200;
   int Nrep = 10;
 
-  float Ts[9] = {3, 2.5, 2, 1.5, 1.0, 0.5, 0.1, 0.05, 0.01};
+  float Ts[17] = {3, 2.75, 2.5, 2.25, 2, 1.75, 1.5, 1.25, 1.0, 0.75, 0.5, 0.3, 0.1, 0.075, 0.05, 0.03, 0.01};
 
   for (int j = 0; j < Nrep; j++) {
     srand(j);
@@ -418,10 +416,10 @@ int main(){
     set_p(&parts, params.T);
     energia(&parts, &pauli, params.L);
     printf("Tramo lineal\n");
-    for (int k = 0; k < 9; k++) {
+    for (int k = 0; k < 17; k++) {
       start = clock();
       params.T = Ts[k];
-      sprintf(filename, "FD_fit/rho0/distribucion_13_rep%d_%f.txt", j+1, params.T);
+      sprintf(filename, "FD_fit/rho2/distribucion_10_rep%d_%f.txt", j+1, params.T);
       int aceptados = muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
       end = clock();
       time = ((double) (end - start)) / CLOCKS_PER_SEC;
