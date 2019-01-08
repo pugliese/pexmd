@@ -104,3 +104,30 @@ float pressure_pauli_PBC(float *x, float *p, long int* pairs, long int npairs,
   return qF_aux;
 
 }
+
+float delta_fases(float *x, float *p, long int* pairs, long int npairs, float *dq, float *dp, float L){
+
+  for (int l = 0; l < npairs; l++) {
+    float delta_q[3];
+    float delta_p[3];
+    int i = pairs[2*l];
+    int j = pairs[2*l+1];
+
+    for (int k = 0; k < 3; k++) {
+      delta_q[k] = x[3*i+k] - x[3*j+k];
+      delta_p[k] = p[3*i+k] - p[3*j+k];
+      delta_q[k] = delta_q[k] + L*(delta_q[k] < -0.5*L) - L*(0.5*L < delta_q[k]);
+    }
+
+    dq[l] = 0;
+    dp[l] = 0;
+    for (int k = 0; k < 3; k++) {
+      dq[l] += delta_q[k]*delta_q[k];
+      dp[l] += delta_p[k]*delta_p[k];
+    }
+    dq[l] = sqrt(dq[l]);
+    dp[l] = sqrt(dp[l]);
+
+  }
+  return 0;
+}
