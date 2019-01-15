@@ -105,6 +105,7 @@ int energia(struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, f
         kin = kin + pi[k]*pi[k];
       }
       // Interaccion con particulas distintas
+      /*
       for (int j = 0; j < inf; j++){
         float qj[3];
         sub_vector(parts->q, j, qj);
@@ -112,6 +113,7 @@ int energia(struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, f
         r = sqrt(rsq);
         pot = pot + interaction_nuc(r, nuc);
       }
+      */
       // Interaccion entre particulas identicas
       for (int j = inf; j < i; j++){
         float qj[3];
@@ -120,8 +122,8 @@ int energia(struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, f
         sub_vector(parts->p, j, pj);
         rsq = distancia_q(qi, qj, L);
         pot = pot + interaction_pauli(rsq, pi, pj, pauli);
-        r = sqrt(rsq);
-        pot = pot + interaction_nuc(r, nuc);
+        //r = sqrt(rsq);
+        //pot = pot + interaction_nuc(r, nuc);
       }
     }
   }
@@ -153,6 +155,7 @@ float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, struct Nuc
   int l = i/m;
   int inf = l*m;
   int sup = (l+1)*m;
+  /*
   for (int j = 0; j < inf; j++){
     float qj[3];
     sub_vector(parts->q, j, qj);
@@ -166,6 +169,7 @@ float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, struct Nuc
     new_pot_ij = interaction_nuc(r, nuc);
     delta_pot = delta_pot + (new_pot_ij - pot_ij);
   }
+  */
   for (int j = inf; j < i; j++){
     float qj[3];
     float pj[3];
@@ -174,13 +178,13 @@ float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, struct Nuc
 
     rsq = distancia_q(qi, qj, L);
     pot_ij = interaction_pauli(rsq, pi, pj, pauli);
-    r = sqrt(rsq);
-    pot_ij = pot_ij + interaction_nuc(r, nuc);
+    //r = sqrt(rsq);
+    //pot_ij = pot_ij + interaction_nuc(r, nuc);
 
     rsq = distancia_q(new_q, qj, L);
     new_pot_ij = interaction_pauli(rsq, new_p, pj, pauli);
-    r = sqrt(rsq);
-    new_pot_ij = new_pot_ij + interaction_nuc(r, nuc);
+    //r = sqrt(rsq);
+    //new_pot_ij = new_pot_ij + interaction_nuc(r, nuc);
     delta_pot = delta_pot + (new_pot_ij - pot_ij);
   }
   for (int j = i+1; j < sup; j++){
@@ -191,15 +195,16 @@ float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, struct Nuc
 
     rsq = distancia_q(qi, qj, L);
     pot_ij = interaction_pauli(rsq, pi, pj, pauli);
-    r = sqrt(rsq);
-    pot_ij = pot_ij + interaction_nuc(r, nuc);
+    //r = sqrt(rsq);
+    //pot_ij = pot_ij + interaction_nuc(r, nuc);
 
     rsq = distancia_q(new_q, qj, L);
     new_pot_ij = interaction_pauli(rsq, new_p, pj, pauli);
-    r = sqrt(rsq);
-    new_pot_ij = new_pot_ij + interaction_nuc(r, nuc);
+    //r = sqrt(rsq);
+    //new_pot_ij = new_pot_ij + interaction_nuc(r, nuc);
     delta_pot = delta_pot + (new_pot_ij - pot_ij);
   }
+  /*
   for (int j = sup; j < parts->n; j++){
     float qj[3];
     sub_vector(parts->q, j, qj);
@@ -213,6 +218,7 @@ float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, struct Nuc
     new_pot_ij = interaction_nuc(r, nuc);
     delta_pot = delta_pot + (new_pot_ij - pot_ij);
   }
+  */
   return ((float) delta_pot);
 }
 
@@ -382,7 +388,7 @@ int main(){
 
 // Particulas
   struct Particles parts;
-  int N = 18;
+  int N = 10;
   parts.n = N*N*N;
   parts.mass = 1.043916; // Masa protón, MeV*(10^-22 s/fm)^2
   parts.q = (float *) malloc(3*parts.n*sizeof(float));
@@ -427,12 +433,58 @@ int main(){
   // Distribucion de muchos T; muchas realizaciones
   clock_t start, end;
   double time;
-  int pasos = 500*parts.n;
+  int pasos = 5000*parts.n;
   srand(1);
 
-  float rhos[6] = {0.1, 0.125, 0.15, 0.175, 0.2, 0.225};
+  //float rhos[6] = {0.1, 0.125, 0.15, 0.175, 0.2, 0.225};
+  float rhos[2] = {0.01, 0.05};
 
+  for (int k = 0; k < 1; k++){
+    sprintf(filename, "checkpoint_%f_10.txt", rhos[k]);
+    load_checkpoint(filename, &parts, &pauli, &nuc, &params);
 
+    energia(&parts, &pauli, &nuc, params.L);
+
+    printf("%f\n", parts.energy);
+
+    params.delta_q = pauli.qo/5;
+    params.delta_p = pauli.po/5;
+
+    start = clock();
+    int aceptados = N_steps(&parts, &pauli, &nuc, &params, pasos);
+    end = clock();
+    time = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("Muestreo rho = %f en %f segundos con %d aceptados (%f)\n", pow(N/params.L, 3), time, aceptados, ((float) aceptados)/pasos);
+    printf("%f\n", parts.energy);
+
+    params.delta_q = pauli.qo/10;
+    params.delta_p = pauli.po/10;
+
+    start = clock();
+    aceptados = N_steps(&parts, &pauli, &nuc, &params, pasos);
+    end = clock();
+    time = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("Muestreo rho = %f en %f segundos con %d aceptados (%f)\n", pow(N/params.L, 3), time, aceptados, ((float) aceptados)/pasos);
+    printf("%f\n", parts.energy);
+
+    params.delta_q = pauli.qo*params.L/1500;
+    params.delta_p = pauli.po/50;
+
+    start = clock();
+    sprintf(filename, "energias_%f.txt", rhos[k]);
+    aceptados = muestrear_energias(filename, &parts, &pauli, &nuc, &params, pasos, 0, 0);
+    end = clock();
+    time = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("Muestreo rho = %f en %f segundos con %d aceptados (%f)\n", pow(N/params.L, 3), time, aceptados, ((float) aceptados)/pasos);
+    printf("%f\n", parts.energy);
+    sprintf(filename, "checkpoint_%f_10.txt", rhos[k]);
+    save_checkpoint(filename, &parts, &pauli, &nuc, &params);
+
+    sprintf(filename, "distribucion_%f_10.txt", rhos[k]);
+    aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &params, 1, 0, 0);
+  }
+
+/*
   for (int k = 0; k < 5; k++) {
     int idx = 4 - k;
     sprintf(filename, "checkpoint_%f_18.txt", rhos[idx]);
@@ -451,7 +503,7 @@ int main(){
     sprintf(filename, "checkpoint_%f_18.txt", rhos[idx]);
     save_checkpoint(filename, &parts, &pauli, &nuc, &params);
   }
-
+*/
   free(parts.q);
   free(parts.p);
   return 0;

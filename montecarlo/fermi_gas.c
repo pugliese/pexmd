@@ -111,16 +111,8 @@ float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, float L, f
   float pi[3];
   sub_vector(parts->q, i, qi);
   sub_vector(parts->p, i, pi);
-  for(int j = 0; j < i; j++){
-    float qj[3];
-    float pj[3];
-    sub_vector(parts->q, j, qj);
-    sub_vector(parts->p, j, pj);
-    float pot_ij = interaction(qi, qj, pi, pj, pauli, L);
-    float new_pot_ij = interaction(new_q, qj, new_p, pj, pauli, L);
-    delta_pot = delta_pot + (new_pot_ij - pot_ij);
-  }
-  for(int j = i+1; j < parts->n; j++){
+  for(int j = 0; j < parts->n; j++){
+    if (j == i) continue;
     float qj[3];
     float pj[3];
     sub_vector(parts->q, j, qj);
