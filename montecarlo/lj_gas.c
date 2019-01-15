@@ -278,10 +278,10 @@ int main(){
 
 // Parametros
   struct Externos params;
-  params.L = 0.983*N; // fm ; mayor a 2*qo*rcut
+  params.L = 0.7*N; // fm ; mayor a 2*qo*rcut
   params.T = 2; // MeV
-  params.delta_q = 0.5; // fm
-  params.delta_p = 0.5; // MeV*10^-22 s/fm
+  params.delta_q = 0.001; // fm
+  params.delta_p = 0.001; // MeV*10^-22 s/fm
 
   char filename[255];
 
@@ -293,22 +293,23 @@ int main(){
   int Nsamp = 200;
   int Nrep = 10;
 
-  //float Ts[17] = {3, 2.75, 2.5, 2.25, 2, 1.75, 1.5, 1.25, 1.0, 0.75, 0.5, 0.3, 0.1, 0.075, 0.05, 0.03, 0.01};
+  float Ts[4] = {0.01, 0.1, 1, 10};
 
   for (int j = 0; j < Nrep; j++) {
     srand(j);
     printf("Realizacion %d/%d\n", j+1, Nrep);
     //params.T = Ts[0];
-    params.T = 2;
-    set_box(&parts, params.L);
-    set_p(&parts, params.T);
-    energia(&parts, &lj, params.L);
+    //params.T = 0.001;
     printf("Tramo lineal\n");
-    for (int k = 0; k < 16; k++) {
+    for (int k = 0; k < 4; k++) {
       start = clock();
-      //params.T = Ts[k];
-      params.T = 2 - 0.1*k;
-      sprintf(filename, "LJ_fit/rho1/distribucion_10_rep%d_%f.txt", j+1, params.T);
+      params.T = Ts[k];
+      set_box(&parts, params.L);
+      set_p(&parts, params.T);
+      energia(&parts, &lj, params.L);
+      params.delta_q = 0.001*sqrt(Ts[k]/Ts[0]);
+      params.delta_p = 0.001*sqrt(Ts[k]/Ts[0]);
+      sprintf(filename, "LJ_fit/rho2/distribucion_10_rep%d_%f.txt", j+1, params.T);
       int aceptados = muestrear_impulsos(filename, &parts, &lj, &params, Nsamp, factor, factor_term);
       end = clock();
       time = ((double) (end - start)) / CLOCKS_PER_SEC;

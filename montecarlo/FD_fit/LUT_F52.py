@@ -25,8 +25,8 @@ F52_APB = lambda z: (8/(15*np.pi**0.5))*(np.log(z)**2.5)
 
 error_rel = lambda a,b: 2*np.abs(a-b)/(a+b)
 
-z1 = np.linspace(0, 0.45, 451)
-z2 = np.linspace(0.451, 20, 2000)
+z1 = np.linspace(0, 0.75, 751)
+z2 = np.linspace(0.751, 20, 2000)
 z3 = np.logspace(1.305, 5, 1000)
 
 F1 = [F52_S(z) for z in z1]

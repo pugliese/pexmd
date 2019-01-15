@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pylab as plt
+from matplotlib.colors import LogNorm
+import scipy.ndimage
 import itertools as it
 import ctypes as ct
 import sys
@@ -20,7 +22,7 @@ Nsamp = 200
 tipo = "rep"
 rho = 'rho0'
 Nbins = 100
-Nreps = 10
+Nreps = 1
 
 nargs = len(sys.argv)
 if (nargs >= 2):
@@ -79,7 +81,7 @@ if (tipo == "a"):
   qF = np.zeros(n_temps)
 
 
-  for k in range(n_temps):
+  for k in range(8):
     data_q = np.array([], dtype=np.float32)
     data_p = np.array([], dtype=np.float32)
     for j in range(Nreps):
@@ -135,7 +137,7 @@ if (tipo == "f&v"):
   MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
   FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
 
-  seleccion = [0, 2, 4, 6, 8, 10, 12, 14, 16]
+  seleccion = range(9)
 
   mus = np.zeros(len(seleccion))
   i = 0
@@ -148,17 +150,16 @@ if (tipo == "f&v"):
       plt.subplot(3, 3, i+1)
     plt.xlabel(r"$E$")
     plt.plot(E,  ns, "ko")
-    #plt.text((min(E)+ 5*max(E))/6, 0.9*max(ns), "T=%f" %(Ts[k]))
-    plt.text(1, 1700, "T=%f" %(Ts[k]))
+    plt.text((min(E)+ 5*max(E))/6, 0.9*max(ns), "T=%f" %(Ts[k]))
+    #plt.text(1, 1700, "T=%f" %(Ts[k]))
     rango = np.linspace(0, E[-1], 1000)
     exacto_MB = MB(rango, Ts[k])
-    plt.plot(rango, exacto_MB, "r-")
+    #plt.plot(rango, exacto_MB, "r-")
     mus[i] = mu(long_term(Ts[k])**3*N/V, Ts[k])
     exacto_FD = FD(rango, mus[i], Ts[k])
     plt.plot(rango, exacto_FD, "k--")
-    plt.axis([0, 2, 0, 2500])
+    #plt.axis([0, 2, 0, 2500])
     i+=1
-
   plt.show()
 
 if (tipo == "p"):
@@ -265,7 +266,7 @@ if(tipo == 'e'):
 
   dq = np.zeros(p*Nsamp*Nreps)
   dp = np.zeros(p*Nsamp*Nreps)
-  for k in seleccion:
+  for k in range(1):
     data_q = np.array([], dtype=np.float32)
     data_p = np.array([], dtype=np.float32)
     for j in range(Nreps):
@@ -275,16 +276,69 @@ if(tipo == 'e'):
     plt.figure()
     for i in range(Nsamp*Nreps):
       dq[p*i:p*(i+1)], dp[p*i:p*(i+1)] = deltas(data_q[3*N*i:3*N*(i+1)], data_p[3*N*i:3*N*(i+1)])
-      #plt.plot(dq, dp, 'b.')
-    heatmap, xedges, yedges = np.histogram2d(dq, dp, bins=50)
+    """
+    heatmap, xedges, yedges = np.histogram2d(dq, dp, bins=100)
+    dQ, dP = np.meshgrid((xedges[1:]+xedges[:-1])/2, (yedges[1:]+yedges[:-1])/2)
+    plt.hist2d(dq, dp, bins=100)
+    plt.contour(dP, dQ, heatmap, levels = (np.arange(0,5)*np.max(heatmap)/6+10))
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
     plt.clf()
     plt.imshow(heatmap.T, extent=extent, origin='lower')
+    plt.cm.rainbow
+    """
+    counts,xbins,ybins,image = plt.hist2d(dq,dp,bins=100, norm=LogNorm(), cmap = plt.cm.rainbow)
+    plt.colorbar()
+    new_counts = scipy.ndimage.filters.gaussian_filter(counts, 1)
+    CS = plt.contour(new_counts.transpose(),extent=[xbins[0],xbins[-1],ybins[0],ybins[-1]],
+                  linewidths=3, colors = "black", levels = np.logspace(1, 3, 3))
+    plt.clabel(CS, colors = "black", inline=True, fmt="%d", fontsize=20)
     plt.xlabel(r'$\Delta q$')
     plt.ylabel(r'$\Delta p$')
     plt.title(r'$T=%1.4fMeV$' %(Ts[k]))
   plt.show()
 
+
+if (tipo == "gr"):
+
+  gr_c = pressure.Gr
+  gr_c.argtypes = [ct.c_voidp, ct.c_int, ct.c_float,
+                       ct.c_float, ct.c_voidp, ct.c_int]
+  gr_c.restype = ct.c_float
+
+
+  pairs = np.array(list(it.combinations(range(N), 2)), dtype=np.int64)
+  def Gr(x, dr):
+    M = int(np.ceil(np.sqrt(3)*L/(2*dr)))
+    gr = np.zeros(M, dtype=np.float32)
+    xp = x.ctypes.data_as(ct.c_voidp)
+    grp = gr.ctypes.data_as(ct.c_voidp)
+    gr_c(xp, len(x)//3, dr, L, grp, M)
+    return gr
+
+  dr = L/(2*400)
+  gr = []
+  seleccion = range(8)
+  i = 0
+  for k in seleccion:
+    data_q = np.array([], dtype=np.float32)
+    data_p = np.array([], dtype=np.float32)
+    for j in range(Nreps):
+      data_aux = np.loadtxt(rho+"/distribucion_10_rep%d_%f.txt" %(j+1, Ts[k]), dtype=np.float32)
+      data_q = np.concatenate([data_q, data_aux[:, 0]])
+      data_p = np.concatenate([data_p, data_aux[:, 1]])
+    gr.append(Gr(data_q[0:3*N], dr)/(Nsamp*Nreps))
+    for j in range(1,Nsamp*Nreps):
+      gr[i] += Gr(data_q[3*N*j:3*N*(j+1)], dr)/(Nsamp*Nreps)
+    i += 1
+  for i in range(len(seleccion)):
+    plt.subplot(4, 2, i+1)
+    plt.plot(dr*np.arange(len(gr[i])), gr[i], "b-")
+    plt.plot([0, 0.5*L], [1, 1], "r-")
+    plt.xlabel(r"$r$")
+    plt.ylabel(r"$g(r)$")
+    plt.title(r"$T=%f MeV$ $\rho=%f fm^{-3}$"%(Ts[seleccion[i]], N/V))
+    plt.axis([0, 0.5*L, 0, max(gr[i])])
+  plt.show()
 
 
 """

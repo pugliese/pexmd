@@ -5,7 +5,7 @@ LD_FLAGS = -shared
 C_FLAGS = -g -Ofast -fPIC -std=gnu99
 
 
-all: pressure.so fermi_gas.e lj_gas.e
+all: pressure.so fermi_gas.e lj_gas.e NM/NM.e
 
 %.e: %.o
 	$(CC) $(C_FLAGS) $^ -o $@ -lm
@@ -14,7 +14,7 @@ all: pressure.so fermi_gas.e lj_gas.e
 	$(LD) $(LD_FLAGS) $^ -o $@
 
 %.o: %.c
-	$(CC) $(C_FLAGS) $^ -c
+	$(CC) $(C_FLAGS) $^ -c -o $@
 
 clean:
-	rm -rfv lj.so lj.o morse.so morse.o
+	rm -rfv lj.so lj.o morse.so morse.o NM/NM.o

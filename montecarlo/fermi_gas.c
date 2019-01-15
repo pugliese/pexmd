@@ -265,6 +265,15 @@ int load_checkpoint(char *filename, struct Particles *parts, struct Pauli *pauli
   return 0;
 }
 
+int load_checkpoint_parts(char *filename, struct Particles *parts){
+  FILE *f = fopen(filename, "r");
+  for(int k = 0; k < 3*parts->n; k++){
+    int i = fscanf(f, "%f %f\n", &parts->q[k], &parts->p[k]);
+  }
+  fclose(f);
+  return 0;
+}
+
 
 
 // --------------------------------- MAIN ----------------------------------- //
@@ -290,7 +299,7 @@ int main(){
   pauli.qo = 6; // fm
   pauli.po = 2.067; // MeV*10^-22 s/fm
   pauli.D = 34.32*pow(h_barra/(pauli.po*pauli.qo), 3); // MeV
-  pauli.scut2 = 10; // Un ~0.7% del máximo
+  pauli.scut2 = 1.425*1.425; // Un ~0.7% del máximo
   //pauli.scut2 = 6; // Un ~4.98% del máximo
   pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
 
@@ -299,8 +308,8 @@ int main(){
   //params.L = 40; // fm ; mayor a 2*qo*scut
   //params.L = 30; // fm ; mayor a 2*qo*scut
   //params.L = 50; // fm ; mayor a 2*qo*scut
-  params.L = 2*N*pauli.qo/1; // fm ; mayor a 2*qo*scut
-  params.T = 525; // MeV
+  params.L = 2*N*pauli.qo/3; // fm ; mayor a 2*qo*scut
+  params.T = 3; // MeV
   params.delta_q = pauli.qo/2; // fm
   params.delta_p = pauli.po/2; // MeV*10^-22 s/fm
 
@@ -404,22 +413,20 @@ int main(){
   int factor = 2;
   int factor_term = 2500;
   int Nsamp = 200;
-  int Nrep = 10;
+  int Nrep = 1;
 
-  float Ts[17] = {3, 2.75, 2.5, 2.25, 2, 1.75, 1.5, 1.25, 1.0, 0.75, 0.5, 0.3, 0.1, 0.075, 0.05, 0.03, 0.01};
+  float Ts[7] = {1, 0.5, 0.1, 0.05, 0.001, 0.0005, 0.0001};
 
   for (int j = 0; j < Nrep; j++) {
     srand(j);
     printf("Realizacion %d/%d\n", j+1, Nrep);
     params.T = Ts[0];
-    set_box(&parts, params.L);
-    set_p(&parts, params.T);
-    energia(&parts, &pauli, params.L);
-    printf("Tramo lineal\n");
-    for (int k = 0; k < 17; k++) {
+    for (int k = 0; k < 7; k++) {
       start = clock();
       params.T = Ts[k];
-      sprintf(filename, "FD_fit/rho2/distribucion_10_rep%d_%f.txt", j+1, params.T);
+      params.delta_q = pow(Ts[k]/0.0025, 0.8)*pauli.qo/10;
+      params.delta_p = pow(Ts[k]/0.0025, 0.8)*pauli.po/10;
+      sprintf(filename, "FD_fit/coso2/distribucion_10_rep%d_%f.txt", j+1, params.T);
       int aceptados = muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
       end = clock();
       time = ((double) (end - start)) / CLOCKS_PER_SEC;

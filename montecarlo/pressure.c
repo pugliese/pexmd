@@ -131,3 +131,29 @@ float delta_fases(float *x, float *p, long int* pairs, long int npairs, float *d
   }
   return 0;
 }
+
+
+float Gr(float* x, int N, float dr, float L, float* g, int ng) {
+  float rij;
+  int k;
+  float delta_q[3];
+
+  for(int i = 1; i < N; i++){
+    for(int j = 0; j < i; j++){
+      rij = 0;
+      for (int k = 0; k < 3; k++) {
+        delta_q[k] = x[3*i+k] - x[3*j+k];
+        delta_q[k] = delta_q[k] + L*(delta_q[k] < -0.5*L) - L*(0.5*L < delta_q[k]);
+        rij += delta_q[k]*delta_q[k];
+      }
+      rij = sqrt(rij);
+      k = floor(rij/dr);
+      g[k]++;
+    }
+  }
+  float rho = N/(L*L*L);
+  for (int i = 1; i < ng; i++){
+    g[i] = g[i]/(2*M_PI*dr*dr*dr*i*i*rho*N);
+  }
+  return 0;
+}
