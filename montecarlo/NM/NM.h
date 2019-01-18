@@ -8,7 +8,8 @@ struct Particles {
   float* q;
   float* p;
   float mass;
-  float energy;
+  float pot_pauli;
+  float pot_nuc;
   float kinetic;
 };
 
@@ -49,7 +50,7 @@ float interaction_pauli(float r2, float *p1, float *p2, struct Pauli *pauli);
 float interaction_nuc(float r, struct Nuclear *nuc);
 int energia(struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, float L);
 float delta_energia_kin(struct Particles *parts, float *new_p, int i);
-float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, float L, float *new_q, float *new_p, int i);
+float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, float L, float *new_q, float *new_p, int i, float *deltas);
 float set_box(struct Particles *parts, float L);
 float set_p(struct Particles *parts, float T);
 int step(struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, struct Externos *params);

@@ -16,11 +16,11 @@ D = 34.32*(h_bar/(po*qo))**3
 scut = np.sqrt(10)
 pauli = [D, qo, po, np.sqrt(10)]
 h = h_bar*2*np.pi
-N = 18**3
+N = 10**3
 Nsamp = 1
 
 tipo = "rep"
-rho = 'rho0'
+caso = 'layers/x1/'
 Nbins = 100
 Nreps = 1
 
@@ -28,35 +28,38 @@ nargs = len(sys.argv)
 if (nargs >= 2):
   tipo = sys.argv[1]
 if (nargs >= 3):
-  rho = sys.argv[2]
+  caso = sys.argv[2]
 if (nargs >= 4):
   Nbins = int(sys.argv[3])
 
-L = 12*N**(1.0/3)
-if (rho[-1] == "0"):
-  L = L/3
-if (rho[-1] == "1"):
-  L = L/2
-V = L**3
 
 
-files = glob.glob("energias_*")
+
+files = glob.glob(caso+"energias_*")
 rhos = [float(f.split("_")[1][:-4]) for f in files]
 n_rhos = len(rhos)
 rhos = np.sort(rhos)
 
 if(tipo == 't'):
-  E = []
   E_kin = []
+  E_nuc = []
+  E_pauli = []
+  E = []
   Es = np.zeros(n_rhos)
 
   for k in range(n_rhos):
-    data = np.loadtxt("energias_%f.txt" %(rhos[k]))
-    E.append(data[:,0])
-    E_kin.append(data[:,1])
+    data = np.loadtxt(caso+"energias_%f.txt" %(rhos[k]), dtype=np.float32)
+    E_kin.append(data[:,0])
+    E_nuc.append(data[:,1])
+    E_pauli.append(data[:,2])
+    E.append(E_kin[-1] + E_nuc[-1] + E_pauli[-1])
     plt.subplot(n_rhos//2, 2, k+1)
     plt.plot(E[-1]/N, "b-")
+    """
     plt.plot(E_kin[-1]/N, "r--")
+    plt.plot(E_nuc[-1]/N, "k--")
+    plt.plot(E_pauli[-1]/N, "g--")
+    """
     plt.legend([r"$\rho=%f fm^{-3}$" %rhos[k]])
     Es[k] = np.mean(E[-1])/N
   plt.figure()
@@ -92,7 +95,7 @@ if(tipo == 'e'):
   dp = np.zeros(4*len(pairs))
 
   for k in range(1):
-    data_aux = np.loadtxt("distribucion_%f_10.txt" %(rhos[k]), dtype=np.float32)
+    data_aux = np.loadtxt("distribucion_%f.txt" %(rhos[k]), dtype=np.float32)
     data_q = data_aux[:, 0]
     data_p = data_aux[:, 1]
     plt.figure()
