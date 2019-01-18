@@ -215,6 +215,21 @@ int muestrear_impulsos(char *filename, struct Particles *parts, struct Pauli *pa
   return aceptados;
 }
 
+int muestrear_energias(char *filename, struct Particles *parts, struct Pauli *pauli, struct Externos *params, int Nsamp, int factor, int factor_term){
+  // Termalizacion
+  printf("%s\n", filename);
+  N_steps(parts, pauli, params, factor_term*parts->n);
+  // Muestreo
+  FILE *f = fopen(filename, "w");
+  int aceptados = 0;
+  for(int k = 0; k < Nsamp; k++){
+    aceptados = aceptados + N_steps(parts, pauli, params, factor*parts->n+1);
+    fprintf(f, "%f %f %d\n", parts->kinetic, parts->energy, aceptados);
+  }
+  fclose(f);
+  return aceptados;
+}
+
 int save_checkpoint(char *filename, struct Particles *parts, struct Pauli *pauli, struct Externos *params){
   FILE *f = fopen(filename, "w");
   fprintf(f, "%d %f %f %f\n", parts->n, parts->mass, parts->energy, parts->kinetic);
@@ -277,7 +292,7 @@ int main(){
   struct Particles parts;
   int N = 10;
   parts.n = N*N*N;
-  parts.mass = 1.043916 * 100; // Masa protón, MeV*(10^-22 s/fm)^2
+  parts.mass = 1.043916 ; // Masa protón, MeV*(10^-22 s/fm)^2
   parts.q = (float *) malloc(3*parts.n*sizeof(float));
   parts.p = (float *) malloc(3*parts.n*sizeof(float));
   for(int j = 0; j < 3*parts.n; j++){
@@ -291,8 +306,8 @@ int main(){
   pauli.qo = 6; // fm
   pauli.po = 2.067; // MeV*10^-22 s/fm
   pauli.D = 34.32*pow(h_barra/(pauli.po*pauli.qo), 3); // MeV
-  pauli.scut2 = 1.425*1.425; // Un ~0.7% del máximo
-  //pauli.scut2 = 6; // Un ~4.98% del máximo
+  //pauli.scut2 = 10; // Un ~0.7% del máximo
+  pauli.scut2 = 6; // Un ~4.98% del máximo
   pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
 
 // Parametros
@@ -404,25 +419,29 @@ int main(){
   double time;
   int factor = 2;
   int factor_term = 2500;
-  int Nsamp = 200;
+  int Nsamp = 5000;
   int Nrep = 1;
 
-  float Ts[7] = {1, 0.5, 0.1, 0.05, 0.001, 0.0005, 0.0001};
+  float Ts[13] = {1, 0.75, 0.5, 0.3, 0.1, 0.075, 0.05, 0.03, 0.01, 0.075, 0.005, 0.003, 0.001};
 
   for (int j = 0; j < Nrep; j++) {
     srand(j);
     printf("Realizacion %d/%d\n", j+1, Nrep);
     params.T = Ts[0];
-    for (int k = 0; k < 7; k++) {
+    for (int k = 0; k < 13; k++) {
+      set_box(&parts, params.L);
+      set_p(&parts, params.T);
+      energia(&parts, &pauli, params.L);
       start = clock();
       params.T = Ts[k];
-      params.delta_q = pow(Ts[k]/0.0025, 0.8)*pauli.qo/10;
-      params.delta_p = pow(Ts[k]/0.0025, 0.8)*pauli.po/10;
-      sprintf(filename, "FD_fit/coso2/distribucion_10_rep%d_%f.txt", j+1, params.T);
-      int aceptados = muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
+      params.delta_q = pow(Ts[k]/0.0025, 0.85)*pauli.qo/200;
+      params.delta_p = pow(Ts[k]/0.0025, 0.85)*pauli.po/200;
+      //sprintf(filename, "FD_fit/x1/rho0/distribucion_10_rep%d_%f.txt", j+1, params.T);
+      sprintf(filename, "FD_fit/x1/rho0/energia_%f.txt", params.T);
+      int aceptados = muestrear_energias(filename, &parts, &pauli, &params, Nsamp, 0, factor_term);
       end = clock();
       time = ((double) (end - start)) / CLOCKS_PER_SEC;
-      printf("T = %f en %f segundos con %d aceptados (%f)\n", params.T, time, aceptados, ((float) aceptados)/(Nsamp*factor*parts.n));
+      printf("T = %f en %f segundos con %2.2f%% aceptados\n", params.T, time, 100*((float) aceptados)/(Nsamp*factor*parts.n));
     }
   }
 
