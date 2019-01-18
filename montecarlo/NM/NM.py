@@ -95,7 +95,7 @@ if(tipo == 'e'):
   dp = np.zeros(4*len(pairs))
 
   for k in range(1):
-    data_aux = np.loadtxt("distribucion_%f.txt" %(rhos[k]), dtype=np.float32)
+    data_aux = np.loadtxt(caso+"distribucion_%f.txt" %(rhos[k]), dtype=np.float32)
     data_q = data_aux[:, 0]
     data_p = data_aux[:, 1]
     plt.figure()
