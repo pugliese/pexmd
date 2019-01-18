@@ -54,6 +54,27 @@ files = [files[i] for i in idxs]
 
 pressure = ct.CDLL('../pressure.so')
 
+
+if(tipo == 't'):
+  E_kin = []
+  E = []
+  acept = []
+
+  for k in range(n_temps):
+    data = np.loadtxt(rho+"/energia_%f.txt" %(Ts[k]), dtype=np.float32)
+    E_kin.append(data[:,0])
+    E.append(data[:,1])
+    acept.append(data[:,2])
+    plt.subplot(n_temps//2, 2, k+1)
+    plt.plot(E[-1]/N, "b-")
+    plt.legend([r"$T=%f fm^{-3}$" %Ts[k]])
+  plt.figure()
+  for k in range(n_temps):
+    plt.subplot(n_temps//2, 2, k+1)
+    plt.plot(acept[k]/np.arange(1,len(acept[k])+1), "b-")
+    plt.legend([r"$T=%f fm^{-3}$" %Ts[k]])
+  plt.show()
+
 if (tipo == "a"):
 
   pressure_c = pressure.pressure_pauli_PBC
