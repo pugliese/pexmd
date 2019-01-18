@@ -275,7 +275,7 @@ int N_steps(struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, s
 
 int muestrear_impulsos(char *filename, struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, struct Externos *params, int Nsamp, int factor, int factor_term){
   // Termalizacion
-  printf("%s\n", filename);
+  //printf("%s\n", filename);
   N_steps(parts, pauli, nuc, params, factor_term);
   // Muestreo
   FILE *f = fopen(filename, "w");
@@ -292,7 +292,7 @@ int muestrear_impulsos(char *filename, struct Particles *parts, struct Pauli *pa
 
 int muestrear_energias(char *filename, struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, struct Externos *params, int Nsamp, int factor, int factor_term){
   // Termalizacion
-  printf("%s\n", filename);
+  //printf("%s\n", filename);
   N_steps(parts, pauli, nuc, params, factor_term*parts->n);
   // Muestreo
   FILE *f = fopen(filename, "w");
@@ -308,7 +308,7 @@ int muestrear_energias(char *filename, struct Particles *parts, struct Pauli *pa
 
 int save_checkpoint(char *filename, struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, struct Externos *params){
   FILE *f = fopen(filename, "w");
-  printf("%s\n", filename);
+  //printf("%s\n", filename);
   fprintf(f, "%d %f %f %f %f\n", parts->n, parts->mass, parts->kinetic, parts->pot_nuc, parts->pot_pauli);
   for(int k = 0; k < 3*parts->n-1; k++){
     fprintf(f, "%f ", parts->q[k]);
@@ -347,11 +347,10 @@ int load_checkpoint(char *filename, struct Particles *parts, struct Pauli *pauli
 
 int main(int argc, char *argv[]){
 
-  int factor_D = 1;
+  float rho = 0.075;
   char carpeta[20] = "x1/";
   if (argc == 2){
-    int i = sscanf(argv[1], "%d\n", &factor_D);
-    sprintf(carpeta, "x%d/", factor_D);
+    int i = sscanf(argv[1], "%f\n", &rho);
   }
 
 // Particulas
@@ -371,7 +370,7 @@ int main(int argc, char *argv[]){
   float h_barra = 6.582119;
   pauli.qo = 6; // fm
   pauli.po = 2.067; // MeV*10^-22 s/fm
-  pauli.D = 34.32*pow(h_barra/(pauli.po*pauli.qo), 3) * factor_D; // MeV, mantengo el D* de Pauli
+  pauli.D = 34.32*pow(h_barra/(pauli.po*pauli.qo), 3) * 1; // MeV, mantengo el D* de Pauli
   pauli.scut2 = 6; // Un ~5% del máximo
   pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
 
@@ -390,7 +389,7 @@ int main(int argc, char *argv[]){
 
 // Parametros
   struct Externos params;
-  float rho = 0.3;
+  //float rho = 0.3;
   params.L = N/pow(rho, 1.0/3.0); // fm ; mayor a 2*qo*scut
   params.T = 0.5; // MeV
   params.ls = 1; // Cantidad de layers
@@ -402,10 +401,10 @@ int main(int argc, char *argv[]){
   // Distribucion de muchos T; muchas realizaciones
   clock_t start, end;
   double time;
-  int pasos = 200*parts.n;
+  int pasos = 1000*parts.n;
   srand(1);
 
-  float rhos[6] = {0.1, 0.125, 0.15, 0.175, 0.2, 0.225};
+  //float rhos[6] = {0.1, 0.125, 0.15, 0.175, 0.2, 0.225};
   //float rhos[2] = {0.01, 0.05};
 
 /*
@@ -422,25 +421,62 @@ int main(int argc, char *argv[]){
   energia(&parts, &pauli, &nuc, params.L, params.ls);
   printf("%f + %f + %f = %f \n", parts.kinetic, parts.pot_nuc, parts.pot_pauli, parts.kinetic+parts.pot_nuc+parts.pot_pauli);
 */
+/*
+  set_box(&parts, params.L);
+  set_p(&parts, params.T);
+
+  params.delta_q = pauli.qo*params.L/1500;
+  params.delta_p = pauli.po/50;
+
+  sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
+  energia(&parts, &pauli, &nuc, params.L, params.ls);
+  save_checkpoint(filename, &parts, &pauli, &nuc, &params);
+*/
 
 
 
+for (int k = 0; k < 200; k++){
+
+  sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
+
+  load_checkpoint(filename, &parts, &pauli, &nuc, &params);
+
+
+  energia(&parts, &pauli, &nuc, params.L, params.ls);
+
+  params.delta_q = pauli.qo*params.L/1500;
+  params.delta_p = pauli.po/500;
+
+  start = clock();
+  sprintf(filename, "%senergias_%f.txt", carpeta, rho);
+  int aceptados = muestrear_energias(filename, &parts, &pauli, &nuc, &params, pasos, 0, 0);
+  end = clock();
+  time = ((double) (end - start)) / CLOCKS_PER_SEC;
+  printf("Muestreo rho = %f en %f segundos con %2.1f%% de aceptacion\n", rho, time,  100*((float) aceptados)/pasos);
+  sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
+  energia(&parts, &pauli, &nuc, params.L, params.ls);
+  save_checkpoint(filename, &parts, &pauli, &nuc, &params);
+
+  //printf("%f + %f + %f = %f \n", parts.kinetic, parts.pot_nuc, parts.pot_pauli, parts.kinetic+parts.pot_nuc+parts.pot_pauli);
+
+  sprintf(filename, "%sdistribucion_%f.txt", carpeta, rho);
+  aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &params, 1, 0, 0);
+
+}
+
+/*
   for (int k = 0; k < 6; k++){
 
     sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rhos[k]);
 
     load_checkpoint(filename, &parts, &pauli, &nuc, &params);
 
-    pauli.D = 34.32*pow(h_barra/(pauli.po*pauli.qo), 3) * factor_D; // MeV, mantengo el D* de Pauli
-    pauli.scut2 = 6; // Un ~5% del máximo
-    pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
 
 
-    /*
     set_box(&parts, params.L);
     set_p(&parts, params.T);
     params.L = N/pow(rhos[k], 1.0/3.0);
-    */
+
 
     energia(&parts, &pauli, &nuc, params.L, params.ls);
 
@@ -463,7 +499,7 @@ int main(int argc, char *argv[]){
     aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &params, 1, 0, 0);
 
   }
-
+*/
   free(parts.q);
   free(parts.p);
   return 0;
