@@ -482,6 +482,13 @@ def area(Ds, save=False, tol=1E-2):
     A.append(cuadraturas(q,p))
   return np.array(A)
 
+# Calculo numerico del area de exclusion teorica
+def area_teo(D, N):
+  Hc = 0.5*(1+np.log(2*D))
+  xs = np.arange(N)*(2*Hc-1)/N+1
+  area = 4*(2*Hc-1)*np.sum(np.sqrt((xs-1-np.log(xs))/(2*Hc-xs)))/N
+  return area
+
 # ------------------ Volumen fases -------------------------- #
 
 def avanzarN_fp(parts, pot, dt, Nstep):
