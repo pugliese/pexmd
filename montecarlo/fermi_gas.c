@@ -349,16 +349,16 @@ int main(int argc, char *argv[]){
     srand(j);
     printf("Realizacion %d/%d\n", j+1, Nrep);
     params.T = Ts[0];
+    set_box(&parts, params.L);
+    set_p(&parts, params.T);
+    energia(&parts, &pauli, params.L);
     for (int k = 0; k < 13; k++) {
-      set_box(&parts, params.L);
-      set_p(&parts, params.T);
-      energia(&parts, &pauli, params.L);
       start = clock();
       params.T = Ts[k];
       params.delta_q = pow(Ts[k]/0.0025, 0.85)*pauli.qo/200;
       params.delta_p = pow(Ts[k]/0.0025, 0.85)*pauli.po/200;
       sprintf(filename, "FD_fit/rho0/distribucion_10_rep%d_%f.txt", j+1, params.T);
-      int aceptados = muestrear_energias(filename, &parts, &pauli, &params, Nsamp, 0, factor_term);
+      int aceptados = muestrear_energias(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
       end = clock();
       time = ((double) (end - start)) / CLOCKS_PER_SEC;
       printf("T = %f en %f segundos con %2.2f%% aceptados\n", params.T, time, 100*((float) aceptados)/(Nsamp*factor*parts.n));
@@ -370,7 +370,7 @@ int main(int argc, char *argv[]){
   clock_t start, end;
   double time;
   int factor = 2;
-  int factor_term = 30000;
+  int factor_term = 25000;
   int Nsamp = 200;
   int Nrep = 2;
 
@@ -380,11 +380,10 @@ int main(int argc, char *argv[]){
     srand(j);
     printf("Realizacion %d/%d\n", j+1, Nrep);
     params.T = Ts[0];
+    set_box(&parts, params.L);
+    set_p(&parts, params.T);
+    energia(&parts, &pauli, params.L);
     for (int k = 0; k < 10; k++) {
-
-      set_box(&parts, params.L);
-      set_p(&parts, params.T);
-      energia(&parts, &pauli, params.L);
       /*
       sprintf(filename, "FD_fit/Maruyama/rho0/checkpoint_%f.txt", params.T);
       save_checkpoint(filename, &parts, &pauli, &params);
@@ -395,7 +394,8 @@ int main(int argc, char *argv[]){
       params.delta_p = (Ts[k]/5)*pauli.po/10;
       sprintf(filename, "FD_fit/Maruyama/rho0/distribucion_10_rep%d_%f.txt", j+rep_init, params.T);
       //sprintf(filename, "FD_fit/Maruyama/rho0/energia_%f.txt", params.T);
-      int aceptados = muestrear_energias(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
+      //int aceptados = muestrear_energias(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
+      int aceptados = muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
       end = clock();
       time = ((double) (end - start)) / CLOCKS_PER_SEC;
       printf("T = %f en %f segundos con %2.2f%% aceptados\n", params.T, time, 100*((float) aceptados)/(Nsamp*factor*parts.n));
