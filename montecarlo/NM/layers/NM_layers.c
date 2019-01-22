@@ -442,73 +442,80 @@ int main(int argc, char *argv[]){
 */
 
 
-
-for (int k = 0; k < checkpoints; k++){
-
-  sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
-
-  load_checkpoint(filename, &parts, &pauli, &nuc, &params);
-
-
-  energia(&parts, &pauli, &nuc, params.L, params.ls);
-
-  params.delta_q = pauli.qo*params.L/1500;
-  params.delta_p = pauli.po/500;
-
-  start = clock();
-  sprintf(filename, "%senergias_%f.txt", carpeta, rho);
-  int aceptados = muestrear_energias(filename, &parts, &pauli, &nuc, &params, pasos, 0, 0);
-  end = clock();
-  time = ((double) (end - start)) / CLOCKS_PER_SEC;
-  printf("%d/%d) rho = %f en %f segundos con %2.1f%% de aceptacion\n", k+1, checkpoints, rho, time,  100*((float) aceptados)/pasos);
-  sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
-  energia(&parts, &pauli, &nuc, params.L, params.ls);
-  save_checkpoint(filename, &parts, &pauli, &nuc, &params);
-
-  //printf("%f + %f + %f = %f \n", parts.kinetic, parts.pot_nuc, parts.pot_pauli, parts.kinetic+parts.pot_nuc+parts.pot_pauli);
-
-  sprintf(filename, "%sdistribucion_%f.txt", carpeta, rho);
-  aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &params, 1, 0, 0);
-
-}
-printf("--- rho = %f finalizado ---\n", rho);
-
-/*
-  for (int k = 0; k < 6; k++){
-
-    sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rhos[k]);
-
+  /*
+  for (int k = 0; k < checkpoints; k++){
+    sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
     load_checkpoint(filename, &parts, &pauli, &nuc, &params);
-
-
-
-    set_box(&parts, params.L);
-    set_p(&parts, params.T);
-    params.L = N/pow(rhos[k], 1.0/3.0);
-
-
-    energia(&parts, &pauli, &nuc, params.L, params.ls);
 
     params.delta_q = pauli.qo*params.L/1500;
     params.delta_p = pauli.po/500;
 
     start = clock();
-    sprintf(filename, "%senergias_%f.txt", carpeta, rhos[k]);
+    sprintf(filename, "%senergias_%f.txt", carpeta, rho);
     int aceptados = muestrear_energias(filename, &parts, &pauli, &nuc, &params, pasos, 0, 0);
     end = clock();
     time = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("Muestreo rho = %f en %f segundos con %2.1f%% de aceptacion\n", rhos[k], time,  100*((float) aceptados)/pasos);
-    sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rhos[k]);
+    printf("%d/%d) rho = %f en %f segundos con %2.1f%% de aceptacion\n", k+1, checkpoints, rho, time,  100*((float) aceptados)/pasos);
+    sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
     energia(&parts, &pauli, &nuc, params.L, params.ls);
     save_checkpoint(filename, &parts, &pauli, &nuc, &params);
 
-    printf("%f + %f + %f = %f \n", parts.kinetic, parts.pot_nuc, parts.pot_pauli, parts.kinetic+parts.pot_nuc+parts.pot_pauli);
-
-    sprintf(filename, "%sdistribucion_%f.txt", carpeta, rhos[k]);
+    sprintf(filename, "%sdistribucion_%f.txt", carpeta, rho);
     aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &params, 1, 0, 0);
 
   }
-*/
+  printf("--- rho = %f finalizado ---\n", rho);
+  */
+
+  // Reenfriado
+  sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
+  load_checkpoint(filename, &parts, &pauli, &nuc, &params);
+  params.T = 1;
+  params.delta_q = pauli.qo*params.L/1500;
+  params.delta_p = pauli.po/500;
+  for (int k = 0; k < checkpoints; k++){
+    start = clock();
+    sprintf(filename, "%senergias_1MeV_%f.txt", carpeta, rho);
+    int aceptados = muestrear_energias(filename, &parts, &pauli, &nuc, &params, pasos, 0, 0);
+    end = clock();
+    time = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("%d/%d) rho = %f en %f segundos con %2.1f%% de aceptacion\n", k+1, checkpoints, rho, time,  100*((float) aceptados)/pasos);
+    sprintf(filename, "%scheckpoint_1MeV_%f_18.txt", carpeta, rho);
+    energia(&parts, &pauli, &nuc, params.L, params.ls);
+    save_checkpoint(filename, &parts, &pauli, &nuc, &params);
+
+    sprintf(filename, "%sdistribucion_1MeV_%f.txt", carpeta, rho);
+    aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &params, 1, 0, 0);
+
+  }
+  printf("--- rho = %f finalizado en T = 1.0 MeV ---\n", rho);
+
+  sprintf(filename, "%scheckpoint_1MeV_%f_18.txt", carpeta, rho);
+  load_checkpoint(filename, &parts, &pauli, &nuc, &params);
+  params.T = 0.5;
+  params.delta_q = pauli.qo*params.L/1500;
+  params.delta_p = pauli.po/500;
+  for (int k = 0; k < checkpoints; k++){
+    params.delta_q = pauli.qo*params.L/1500;
+    params.delta_p = pauli.po/500;
+
+    start = clock();
+    sprintf(filename, "%senergias_%f.txt", carpeta, rho);
+    int aceptados = muestrear_energias(filename, &parts, &pauli, &nuc, &params, pasos, 0, 0);
+    end = clock();
+    time = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("%d/%d) rho = %f en %f segundos con %2.1f%% de aceptacion\n", k+1, checkpoints, rho, time,  100*((float) aceptados)/pasos);
+    sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
+    energia(&parts, &pauli, &nuc, params.L, params.ls);
+    save_checkpoint(filename, &parts, &pauli, &nuc, &params);
+
+    sprintf(filename, "%sdistribucion_%f.txt", carpeta, rho);
+    aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &params, 1, 0, 0);
+
+  }
+  printf("--- rho = %f finalizado en T = 0.5 MeV ---\n", rho);
+
+
   free(parts.q);
   free(parts.p);
   return 0;
