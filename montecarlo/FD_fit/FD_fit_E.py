@@ -22,7 +22,7 @@ Nsamp = 200
 tipo = "rep"
 rho = 'rho0'
 Nbins = 100
-Nreps = 1
+Nreps = 8
 
 nargs = len(sys.argv)
 if (nargs >= 2):
@@ -39,10 +39,10 @@ if (rho[-1] == "1"):
   L = L/2
 V = L**3
 
-#files = glob.glob(rho+"/distribucion_10_rep1_*")
-files = glob.glob(rho+"/energia_*")
-#Ts = [f.split("_")[3][:-4] for f in files]
-Ts = [f.split("_")[1][:-4] for f in files]
+files = glob.glob(rho+"/distribucion_10_rep2_*")
+#files = glob.glob(rho+"/energia_*")
+Ts = [f.split("_")[3][:-4] for f in files]
+#Ts = [f.split("_")[1][:-4] for f in files]
 n_temps = len(Ts)
 
 for k in range(n_temps):
@@ -73,7 +73,7 @@ if(tipo == 't'):
   plt.figure()
   for k in range(n_temps):
     plt.subplot(n_temps//2, 2, k+1)
-    plt.plot(acept[k]/np.arange(1,len(acept[k])+1), "b-")
+    plt.plot(acept[k]/(20*np.arange(1,len(acept[k])+1)), "b-")
     plt.legend([r"$T=%f fm^{-3}$" %Ts[k]])
   plt.show()
 
@@ -104,7 +104,7 @@ if (tipo == "a"):
   qF = np.zeros(n_temps)
 
 
-  for k in range(8):
+  for k in range(n_temps):
     data_q = np.array([], dtype=np.float32)
     data_p = np.array([], dtype=np.float32)
     for j in range(Nreps):
@@ -160,7 +160,7 @@ if (tipo == "f&v"):
   MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
   FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
 
-  seleccion = range(9)
+  seleccion = range(n_temps)
 
   mus = np.zeros(len(seleccion))
   i = 0
@@ -170,7 +170,7 @@ if (tipo == "f&v"):
     E = data[0,:]
     ns = data[1,:]
     if (n_temps > 1):
-      plt.subplot(3, 3, i+1)
+      plt.subplot(5, 2, i+1)
     plt.xlabel(r"$E$")
     plt.plot(E,  ns, "ko")
     plt.text((min(E)+ 5*max(E))/6, 0.9*max(ns), "T=%f" %(Ts[k]))
