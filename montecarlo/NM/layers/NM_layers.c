@@ -348,9 +348,17 @@ int load_checkpoint(char *filename, struct Particles *parts, struct Pauli *pauli
 int main(int argc, char *argv[]){
 
   float rho = 0.075;
+  int factor_pasos = 200;
+  int checkpoints = 1;
   char carpeta[20] = "x1/";
-  if (argc == 2){
+  if (argc >= 2){
     int i = sscanf(argv[1], "%f\n", &rho);
+  }
+  if (argc >= 3){
+    int i = sscanf(argv[2], "%d\n", &factor_pasos);
+  }
+  if (argc >= 4){
+    int i = sscanf(argv[3], "%d\n", &checkpoints);
   }
 
 // Particulas
@@ -401,7 +409,7 @@ int main(int argc, char *argv[]){
   // Distribucion de muchos T; muchas realizaciones
   clock_t start, end;
   double time;
-  int pasos = 1000*parts.n;
+  int pasos = factor_pasos*parts.n;
   srand(1);
 
   //float rhos[6] = {0.1, 0.125, 0.15, 0.175, 0.2, 0.225};
@@ -435,7 +443,7 @@ int main(int argc, char *argv[]){
 
 
 
-for (int k = 0; k < 200; k++){
+for (int k = 0; k < checkpoints; k++){
 
   sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
 
@@ -452,7 +460,7 @@ for (int k = 0; k < 200; k++){
   int aceptados = muestrear_energias(filename, &parts, &pauli, &nuc, &params, pasos, 0, 0);
   end = clock();
   time = ((double) (end - start)) / CLOCKS_PER_SEC;
-  printf("Muestreo rho = %f en %f segundos con %2.1f%% de aceptacion\n", rho, time,  100*((float) aceptados)/pasos);
+  printf("%d/%d) rho = %f en %f segundos con %2.1f%% de aceptacion\n", k+1, checkpoints, rho, time,  100*((float) aceptados)/pasos);
   sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
   energia(&parts, &pauli, &nuc, params.L, params.ls);
   save_checkpoint(filename, &parts, &pauli, &nuc, &params);
@@ -463,6 +471,7 @@ for (int k = 0; k < 200; k++){
   aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &params, 1, 0, 0);
 
 }
+printf("--- rho = %f finalizado ---\n", rho);
 
 /*
   for (int k = 0; k < 6; k++){
