@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pylab as plt
+from matplotlib.colors import LogNorm
+import scipy.ndimage
 import itertools as it
 import ctypes as ct
 import sys
@@ -16,7 +18,7 @@ rcut = np.sqrt(10)
 pauli = [D, qo, po, np.sqrt(10)]
 h = h_bar*2*np.pi
 N = 10**3
-Nsamp = 200
+Nsamp = 1 #200
 
 tipo = "rep"
 rho = 'rho0'
@@ -173,7 +175,7 @@ if(tipo == 'e'):
 
   dq = np.zeros(p*Nsamp*Nreps)
   dp = np.zeros(p*Nsamp*Nreps)
-  for k in range(n_temps):
+  for k in range(1):
     data_q = np.array([], dtype=np.float32)
     data_p = np.array([], dtype=np.float32)
     for j in range(Nreps):
@@ -183,10 +185,13 @@ if(tipo == 'e'):
     plt.figure()
     for i in range(Nsamp*Nreps):
       dq[p*i:p*(i+1)], dp[p*i:p*(i+1)] = deltas(data_q[3*N*i:3*N*(i+1)], data_p[3*N*i:3*N*(i+1)])
-    heatmap, xedges, yedges = np.histogram2d(dq, dp, bins=50)
-    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
-    plt.clf()
-    plt.imshow(heatmap.T, extent=extent, origin='lower')
+    counts,xbins,ybins,image = plt.hist2d(dq,dp,bins=100, norm=LogNorm(), cmap = plt.cm.rainbow)
+    plt.colorbar()
+    new_counts = scipy.ndimage.filters.gaussian_filter(counts, 1)
+    CS = plt.contour(new_counts.transpose(),extent=[xbins[0],xbins[-1],ybins[0],ybins[-1]],
+                  linewidths=3, colors = "black", levels = np.logspace(1, 3, 3))
+    plt.clabel(CS, colors = "black", inline=True, fmt="%d", fontsize=20)
+    plt.axis([0, xbins[-1], 0, ybins[-1]])
     plt.xlabel(r'$\Delta q$')
     plt.ylabel(r'$\Delta p$')
     plt.title(r'$T=%1.4fMeV$' %(Ts[k]))

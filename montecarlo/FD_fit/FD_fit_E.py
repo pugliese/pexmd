@@ -39,8 +39,10 @@ if (rho[-1] == "1"):
   L = L/2
 V = L**3
 
-files = glob.glob(rho+"/distribucion_10_rep1_*")
-Ts = [f.split("_")[3][:-4] for f in files]
+#files = glob.glob(rho+"/distribucion_10_rep1_*")
+files = glob.glob(rho+"/energia_*")
+#Ts = [f.split("_")[3][:-4] for f in files]
+Ts = [f.split("_")[1][:-4] for f in files]
 n_temps = len(Ts)
 
 for k in range(n_temps):
