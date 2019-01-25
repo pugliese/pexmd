@@ -10,4 +10,5 @@ float pair_gorce(float s2, float D, float po2);
 float pressure_pauli_PBC(float *x, float *p, long int* pairs, long int npairs,
              float D, float qo, float po, float scut, float *force, float *gorce, float L);
 float delta_fases(float *x, float *p, long int* pairs, long int npairs, float *dq, float *dp, float L);
+float delta_fases_sin_PBC(float *x, float *p, long int* pairs, long int npairs, float *dq, float *dp);
  #endif

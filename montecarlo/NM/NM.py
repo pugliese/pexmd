@@ -18,11 +18,11 @@ pauli = [D, qo, po, np.sqrt(10)]
 h = h_bar*2*np.pi
 N = 10**3
 Nsamp = 1
+Nreps = 1
 
 tipo = "rep"
 caso = 'layers/x1/'
 Nbins = 100
-Nreps = 1
 
 nargs = len(sys.argv)
 if (nargs >= 2):
@@ -64,15 +64,22 @@ if(tipo == 't'):
     Es[k] = np.mean(E[-1])/N
   plt.figure()
   plt.plot(rhos, Es, "o--")
+  plt.xlabel(r"$\rho [fm^{-3}]$")
+  plt.ylabel(r"$E [MeV]$")
   plt.show()
 
 pressure = ct.CDLL('../pressure.so')
 
 if(tipo == 'e'):
 
-  deltas_c = pressure.delta_fases
-  deltas_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong,
+  deltasPBC_c = pressure.delta_fases
+  deltasPBC_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong,
                         ct.c_voidp, ct.c_voidp, ct.c_float]
+  deltasPBC_c.restype = ct.c_float
+
+  deltas_c = pressure.delta_fases_sin_PBC
+  deltas_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong,
+                        ct.c_voidp, ct.c_voidp]
   deltas_c.restype = ct.c_float
 
   n = N//4
@@ -86,15 +93,15 @@ if(tipo == 'e'):
     pairsp = pairs.ctypes.data_as(ct.c_voidp)
     dq_p = dq.ctypes.data_as(ct.c_voidp)
     dp_p = dp.ctypes.data_as(ct.c_voidp)
-    deltas_c(xp, pp, pairsp, len(pairs), dq_p, dp_p, L)
+    deltas_c(xp, pp, pairsp, len(pairs), dq_p, dp_p)
     return dq, dp
 
   L = (N/rhos)**(1/3)
 
-  dq = np.zeros(4*len(pairs))
-  dp = np.zeros(4*len(pairs))
+  dq = np.ones(4*len(pairs))
+  dp = np.ones(4*len(pairs))
 
-  for k in range(1):
+  for k in range(n_rhos):
     data_aux = np.loadtxt(caso+"distribucion_%f.txt" %(rhos[k]), dtype=np.float32)
     data_q = data_aux[:, 0]
     data_p = data_aux[:, 1]
@@ -106,7 +113,7 @@ if(tipo == 'e'):
     new_counts = scipy.ndimage.filters.gaussian_filter(counts, 1)
     #plt.subplot(2, 2, i+1)
     CS = plt.contour(new_counts.transpose(),extent=[xbins[0],xbins[-1],ybins[0],ybins[-1]],
-                  linewidths=3, colors = "black", levels = np.logspace(1, 3, 3))
+                  linewidths=3, colors = "black", levels = np.logspace(0, 2, 3))
     plt.clabel(CS, colors = "black", inline=True, fmt="%d", fontsize=20)
     plt.xlabel(r'$\Delta q$')
     plt.ylabel(r'$\Delta p$')
@@ -135,12 +142,12 @@ if (tipo == "gr"):
   dr = L/(2*400)
   gr = []
   i = 0
-  for k in range(1):
-    data_aux = np.loadtxt("distribucion_%f_10.txt" %(rhos[k]), dtype=np.float32)
+  for k in range(n_rhos):
+    data_aux = np.loadtxt(caso+"distribucion_%f.txt" %(rhos[k]), dtype=np.float32)
     data_q = data_aux[:, 0]
     gr.append(Gr(data_q[0:3*N], dr[i], L[i])/(Nsamp*Nreps))
-  for i in range(1):
-    plt.subplot(3, 2, i+1)
+  for i in range(n_rhos):
+    plt.subplot(n_rhos//2, 2, i+1)
     plt.plot(dr[i]*np.arange(len(gr[i])), gr[i], "b-")
     plt.plot([0, 0.5*L[i]], [1, 1], "r-")
     plt.xlabel(r"$r$")
@@ -148,3 +155,17 @@ if (tipo == "gr"):
     plt.title(r"$T=0.5 MeV$ $\rho=%f fm^{-3}$" %(rhos[i]))
     plt.axis([0, 0.5*L[i], 0, max(gr[i])])
   plt.show()
+
+if (tipo=="vmd"):
+  for k in range(n_rhos):
+    new_filename = "sistema_{0}.lammpstrj".format(rhos[k])
+    data = np.loadtxt(caso+"distribucion_%f.txt" %(rhos[k]), dtype=np.float32)
+    L = (1000/rhos[k])**(1.0/3.0)
+    header1 = "ITEM: TIMESTEP\n0\nITEM: NUMBER OF ATOMS\n{0}\n".format(1000)
+    header2 = "ITEM: BOX BOUNDS pp pp pp\n{0} {1}\n{2} {3}\n{4} {5}\n".format(0, L, 0, L, 0, L)
+    header3 = "ITEM: ATOMS type x y z\n"
+    f = open(new_filename, "w")
+    f.write(header1 + header2 + header3)
+    for i in range(len(data[:,0])//3):
+      f.write("{0} {1} {2} {3}\n".format(i//250, data[3*i, 0], data[3*i+1, 0], data[3*i+2, 0]))
+    f.close()

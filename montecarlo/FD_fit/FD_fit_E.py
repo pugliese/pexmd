@@ -8,21 +8,12 @@ import sys
 import glob
 plt.ion()
 
-m = 1.043916 * 100
-h_bar =  6.582119
-qo = 6
-po = 2.067
-D = 34.32*(h_bar/(po*qo))**3
-scut = np.sqrt(10)
-pauli = [D, qo, po, np.sqrt(10)]
-h = h_bar*2*np.pi
-N = 10**3
-Nsamp = 200
 
 tipo = "rep"
 rho = 'rho0'
 Nbins = 100
-Nreps = 8
+Nreps = 1
+Nsamp = 2
 
 nargs = len(sys.argv)
 if (nargs >= 2):
@@ -32,14 +23,34 @@ if (nargs >= 3):
 if (nargs >= 4):
   Nbins = int(sys.argv[3])
 
-L = 12*N**(1.0/3)
+
+N = 10**3
+if(rho[0]== "M"):
+  L = 2*1.644*N**(1.0/3)
+  m = 938.27203 * 100
+  h_bar = 197.327
+  qo = 1.644
+  po = 120
+  D = 207*(h_bar/(po*qo))**3
+else:
+  L = 12*N**(1.0/3)
+  m = 1.043916 * 100
+  h_bar =  6.582119
+  qo = 6
+  po = 2.067
+  D = 34.32*(h_bar/(po*qo))**3
+
 if (rho[-1] == "0"):
   L = L/3
 if (rho[-1] == "1"):
   L = L/2
 V = L**3
 
-files = glob.glob(rho+"/distribucion_10_rep2_*")
+scut = np.sqrt(10)
+pauli = [D, qo, po, np.sqrt(10)]
+h = h_bar*2*np.pi
+
+files = glob.glob(rho+"/distribucion_10_rep1_*")
 #files = glob.glob(rho+"/energia_*")
 Ts = [f.split("_")[3][:-4] for f in files]
 #Ts = [f.split("_")[1][:-4] for f in files]
@@ -77,7 +88,7 @@ if(tipo == 't'):
     plt.legend([r"$T=%f fm^{-3}$" %Ts[k]])
   plt.show()
 
-if (tipo == "a"):
+if (tipo == "h" or tipo == "h&p"):
 
   pressure_c = pressure.pressure_pauli_PBC
   pressure_c.argtypes = [ct.c_voidp, ct.c_voidp, ct.c_voidp, ct.c_longlong, ct.c_float,
@@ -97,27 +108,28 @@ if (tipo == "a"):
     qF = pressure_c(xp, pp, pairsp, len(pairs), D, qo, po, scut, forcep, gorcep, L)
     return force, gorce, qF
 
-
   P = np.zeros(n_temps)
   qp = np.zeros(n_temps)
   pp = np.zeros(n_temps)
   qF = np.zeros(n_temps)
 
-
   for k in range(n_temps):
+    filename = rho+"/histograma_%d_T=%f.txt" %(Nbins, Ts[k])
+    print(filename)
     data_q = np.array([], dtype=np.float32)
     data_p = np.array([], dtype=np.float32)
     for j in range(Nreps):
       data_aux = np.loadtxt(rho+"/distribucion_10_rep%d_%f.txt" %(j+1, Ts[k]), dtype=np.float32)
       data_q = np.concatenate([data_q, data_aux[:, 0]])
       data_p = np.concatenate([data_p, data_aux[:, 1]])
-    """
-    for i in range(Nsamp*Nreps):
-      fuerzas, guerzas, qF_aux = pressure(data_q[3*N*i:3*N*(i+1)], data_p[3*N*i:3*N*(i+1)])
-      qp[k] += np.sum(data_p[3*N*i:3*N*(i+1)]*(data_p[3*N*i:3*N*(i+1)]/m-guerzas))/(3*V*Nsamp*Nreps)
-      qF[k] += qF_aux/(3*V*Nsamp*Nreps)
-    P[k] = qF[k] + qp[k]
-    """
+    print("Presion")
+    if(tipo == "h&p"):
+      for i in range(Nsamp*Nreps):
+        fuerzas, guerzas, qF_aux = pressure(data_q[3*N*i:3*N*(i+1)], data_p[3*N*i:3*N*(i+1)])
+        qp[k] += np.sum(data_p[3*N*i:3*N*(i+1)]*(data_p[3*N*i:3*N*(i+1)]/m-guerzas))/(3*V*Nsamp*Nreps)
+        qF[k] += qF_aux/(3*V*Nsamp*Nreps)
+      P[k] = qF[k] + qp[k]
+
     data = np.zeros(len(data_p)//3)
     for i in range(len(data_p)//3):
       data[i] = np.sum(data_p[3*i:3*i+3]**2)/(2*m)
@@ -126,11 +138,10 @@ if (tipo == "a"):
     ns = ns/((bins[1]-bins[0])*Nreps*Nsamp)
     ns_q = ns_q/((bins_q[1]-bins_q[0])*3*Nreps*Nsamp)
     E = (bins[1:] + bins[:-1])/2
-    filename = rho+"/histograma_%d_T=%f.txt" %(Nbins, Ts[k])
-    print(filename)
     np.savetxt(filename, [E, ns])
 
-  #np.savetxt(rho+"/presiones_N=1000.txt", [Ts,P])
+  if(tipo == "h&p"):
+    np.savetxt(rho+"/presiones_N=1000.txt", [Ts,P])
 
 if (tipo == "f&v"):
 
@@ -161,6 +172,7 @@ if (tipo == "f&v"):
   FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
 
   seleccion = range(n_temps)
+  #seleccion = [0, 1, 3, 5, 7, 9, 11, 12, 13]
 
   mus = np.zeros(len(seleccion))
   i = 0
@@ -170,14 +182,14 @@ if (tipo == "f&v"):
     E = data[0,:]
     ns = data[1,:]
     if (n_temps > 1):
-      plt.subplot(5, 2, i+1)
+      plt.subplot(3, 3, i+1)
     plt.xlabel(r"$E$")
     plt.plot(E,  ns, "ko")
     plt.text((min(E)+ 5*max(E))/6, 0.9*max(ns), "T=%f" %(Ts[k]))
     #plt.text(1, 1700, "T=%f" %(Ts[k]))
-    rango = np.linspace(0, E[-1], 1000)
+    rango = np.linspace(0, E[-1], 10000)
     exacto_MB = MB(rango, Ts[k])
-    #plt.plot(rango, exacto_MB, "r-")
+    plt.plot(rango, exacto_MB, "r-")
     mus[i] = mu(long_term(Ts[k])**3*N/V, Ts[k])
     exacto_FD = FD(rango, mus[i], Ts[k])
     plt.plot(rango, exacto_FD, "k--")
@@ -238,18 +250,25 @@ if (tipo == "p"):
   forma = ['sr--', '^b--', 'og--']
   V = (12*10*np.array([1/3,1/2,1]))**3
   i = 0
+  plt.figure()
+  if (rho[0] == "M"):
+    rhos = ['Maruyama/rho0','Maruyama/rho1','Maruyama/rho2']
+    V = (2*1.644*10*np.array([1.0/3.0, 1.0/2.0, 1.0/1.0]))**3
   rango_T = np.linspace(min(Ts), max(Ts), 1000)
   for rho in rhos:
     data = np.loadtxt(rho+'/presiones_N=1000.txt')
     Ts = data[0,:]
     P = data[1,:]
+    print(P)
     plt.plot(Ts, P*V[i]/N, forma[i])
-    plt.plot(rango_T, [Pres(T,V[i])*V[i]/N for T in rango_T], forma[i][1:-1])
+    #plt.plot(rango_T, [Pres(T,V[i])*V[i]/N for T in rango_T], forma[i][1:-1])
     i += 1
   plt.plot(Ts, Ts, "k-")
   plt.xlabel(r"$T$")
   plt.ylabel(r"$P/\rho$")
-  plt.legend([r"$\rho = 0.015625fm^{-3}$", r"FD $\rho = 0.015625fm^{-3}$", r"$\rho = 0.00462963fm^{-3}$", r"FD $\rho = 0.00462963fm^{-3}$", r"$\rho = 0.0005787fm^{-3}$", r"FD $\rho = 0.0005787fm^{-3}$", "Boltzmann"], loc=9)
+  leyenda = [r"$\rho = %f fm^{-3}$"%(N/V[k]) for k in range(3)]
+  plt.legend(leyenda, loc=2)
+  #plt.legend([, r"FD $\rho = 0.015625fm^{-3}$", r"$\rho = 0.00462963fm^{-3}$", r"FD $\rho = 0.00462963fm^{-3}$", r"$\rho = 0.0005787fm^{-3}$", r"FD $\rho = 0.0005787fm^{-3}$", "Boltzmann"], loc=9)
   plt.show()
 
 
@@ -285,11 +304,14 @@ if(tipo == 'e'):
   Ts = np.array([Ts[i] for i in idxs])
   files = [files[i] for i in idxs]
 
-  seleccion = [0, 4, 8]
+  if (rho[0]=="M"):
+    seleccion = [0, 5, -1]
+  else:
+    seleccion = [0, 4, 8]
 
   dq = np.zeros(p*Nsamp*Nreps)
   dp = np.zeros(p*Nsamp*Nreps)
-  for k in range(1):
+  for k in seleccion:
     data_q = np.array([], dtype=np.float32)
     data_p = np.array([], dtype=np.float32)
     for j in range(Nreps):

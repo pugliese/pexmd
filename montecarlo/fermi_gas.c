@@ -297,7 +297,6 @@ int main(int argc, char *argv[]){
   struct Particles parts;
   int N = 10;
   parts.n = N*N*N;
-  parts.mass = 1.043916 ; // Masa protón, MeV*(10^-22 s/fm)^2
   parts.q = (float *) malloc(3*parts.n*sizeof(float));
   parts.p = (float *) malloc(3*parts.n*sizeof(float));
   for(int j = 0; j < 3*parts.n; j++){
@@ -315,6 +314,7 @@ int main(int argc, char *argv[]){
   pauli.D = 34.32*pow(h_barra/(pauli.po*pauli.qo), 3); // MeV
   pauli.scut2 = 10; // Un ~0.7% del máximo
   pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
+  parts.mass = 1.043916 * 100; // Masa protón, MeV*(10^-22 s/fm)^2
   */
   // PARAMETROS DE MARUYAMA
   float h_barra = 197.327; // MeV*fm/c
@@ -323,10 +323,11 @@ int main(int argc, char *argv[]){
   pauli.D = 207*pow(h_barra/(pauli.po*pauli.qo), 3); // MeV
   pauli.scut2 = 10; // Un ~0.7% del máximo
   pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
+  parts.mass = 938.27203 * 100; //  MeV/c^2
 
 // Parametros
   struct Externos params;
-  params.L = 2*N*pauli.qo/3; // fm ; mayor a 2*qo*scut
+  params.L = 2*N*pauli.qo/1; // fm ; mayor a 2*qo*scut
   params.T = 3; // MeV
   params.delta_q = pauli.qo/2; // fm
   params.delta_p = pauli.po/2; // MeV*10^-22 s/fm
@@ -374,7 +375,9 @@ int main(int argc, char *argv[]){
   int Nsamp = 200;
   int Nrep = 2;
 
-  float Ts[10] = {5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5};
+  //float Ts[10] = {5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5};
+  //float Ts[2] = {20, 15};
+  float Ts[9] = {20, 15, 10, 5, 4, 3, 2, 1, 0.5};
 
   for (int j = 0; j < Nrep; j++) {
     srand(j);
@@ -383,16 +386,16 @@ int main(int argc, char *argv[]){
     set_box(&parts, params.L);
     set_p(&parts, params.T);
     energia(&parts, &pauli, params.L);
-    for (int k = 0; k < 10; k++) {
+    for (int k = 0; k < 9; k++) {
       /*
       sprintf(filename, "FD_fit/Maruyama/rho0/checkpoint_%f.txt", params.T);
       save_checkpoint(filename, &parts, &pauli, &params);
       */
       start = clock();
       params.T = Ts[k];
-      params.delta_q = (Ts[k]/5)*pauli.qo/10;
-      params.delta_p = (Ts[k]/5)*pauli.po/10;
-      sprintf(filename, "FD_fit/Maruyama/rho0/distribucion_10_rep%d_%f.txt", j+rep_init, params.T);
+      params.delta_q = (Ts[k]/5)*pauli.qo;
+      params.delta_p = (Ts[k]/5)*pauli.po*5;
+      sprintf(filename, "FD_fit/Maruyama/rho2/distribucion_10_rep%d_%f.txt", j+rep_init, params.T);
       //sprintf(filename, "FD_fit/Maruyama/rho0/energia_%f.txt", params.T);
       //int aceptados = muestrear_energias(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
       int aceptados = muestrear_impulsos(filename, &parts, &pauli, &params, Nsamp, factor, factor_term);
