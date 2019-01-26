@@ -82,10 +82,11 @@ if(tipo == 'e'):
                         ct.c_voidp, ct.c_voidp]
   deltas_c.restype = ct.c_float
 
-  n = N//4
+  g = 4
+  n = N//g
   pairs = np.array(list(it.combinations(range(n), 2)), dtype=np.int64)
   p = len(pairs)
-  def deltas(x, p, L):
+  def deltas(x, p):
     dq = np.zeros(len(pairs), dtype=np.float32)
     dp = np.zeros(len(pairs), dtype=np.float32)
     xp = x.ctypes.data_as(ct.c_voidp)
@@ -98,25 +99,27 @@ if(tipo == 'e'):
 
   L = (N/rhos)**(1/3)
 
-  dq = np.ones(4*len(pairs))
-  dp = np.ones(4*len(pairs))
+  dq = np.ones(g*len(pairs))
+  dp = np.ones(g*len(pairs))
 
   for k in range(n_rhos):
     data_aux = np.loadtxt(caso+"distribucion_%f.txt" %(rhos[k]), dtype=np.float32)
     data_q = data_aux[:, 0]
     data_p = data_aux[:, 1]
     plt.figure()
-    for i in range(4):
-      dq[i*p:(i+1)*p], dp[i*p:(i+1)*p] = deltas(data_q[i*3*n:(i+1)*3*n], data_p[i*3*n:(i+1)*3*n], L[k])
+    for i in range(g):
+      q_temp = np.array(data_q[i*3*n:(i+1)*3*n], dtype=np.float32)
+      p_temp = np.array(data_p[i*3*n:(i+1)*3*n], dtype=np.float32)
+      dq[i*p:(i+1)*p], dp[i*p:(i+1)*p] = deltas(q_temp, p_temp)
     counts, xbins, ybins, image = plt.hist2d(dq, dp, bins=100, norm=LogNorm(), cmap = plt.cm.rainbow)
     plt.colorbar()
     new_counts = scipy.ndimage.filters.gaussian_filter(counts, 1)
-    #plt.subplot(2, 2, i+1)
     CS = plt.contour(new_counts.transpose(),extent=[xbins[0],xbins[-1],ybins[0],ybins[-1]],
                   linewidths=3, colors = "black", levels = np.logspace(0, 2, 3))
     plt.clabel(CS, colors = "black", inline=True, fmt="%d", fontsize=20)
     plt.xlabel(r'$\Delta q$')
     plt.ylabel(r'$\Delta p$')
+    plt.axis([0, xbins[-1], 0, ybins[-1]])
     plt.title(r'$\rho=%1.4f fm^{-3}$' %(rhos[k]))
   plt.show()
 
