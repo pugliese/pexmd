@@ -462,7 +462,7 @@ int main(int argc, char *argv[]){
 
   }
   printf("--- rho = %f finalizado ---\n", rho);
-
+/*
   // Reenfriado
   sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
   load_checkpoint(filename, &parts, &pauli, &nuc, &params);
@@ -510,7 +510,7 @@ int main(int argc, char *argv[]){
 
   }
   printf("--- rho = %f finalizado en T = 0.5 MeV ---\n", rho);
-
+*/
 
   free(parts.q);
   free(parts.p);
