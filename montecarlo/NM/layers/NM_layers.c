@@ -351,6 +351,7 @@ int main(int argc, char *argv[]){
   int factor_pasos = 200;
   int checkpoints = 1;
   char carpeta[20] = "x1/";
+  char opcion[255] = "e";
   if (argc >= 2){
     int i = sscanf(argv[1], "%f\n", &rho);
   }
@@ -359,6 +360,9 @@ int main(int argc, char *argv[]){
   }
   if (argc >= 4){
     int i = sscanf(argv[3], "%d\n", &checkpoints);
+  }
+  if (argc >= 5){
+    opcion = argv[4];
   }
 
 // Particulas
@@ -429,7 +433,6 @@ int main(int argc, char *argv[]){
   energia(&parts, &pauli, &nuc, params.L, params.ls);
   printf("%f + %f + %f = %f \n", parts.kinetic, parts.pot_nuc, parts.pot_pauli, parts.kinetic+parts.pot_nuc+parts.pot_pauli);
 */
-  char opcion[255] = "e";
   if (opcion == "n"){
     set_box(&parts, params.L);
     set_p(&parts, params.T);
@@ -443,6 +446,7 @@ int main(int argc, char *argv[]){
 
   for (int k = 0; k < checkpoints; k++){
     sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
+    printf("%s\n", filename);
     load_checkpoint(filename, &parts, &pauli, &nuc, &params);
 
     params.delta_q = pauli.qo*params.L/1500;
