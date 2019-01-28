@@ -362,7 +362,7 @@ int main(int argc, char *argv[]){
     int i = sscanf(argv[3], "%d\n", &checkpoints);
   }
   if (argc >= 5){
-    opcion = argv[4];
+    int i = sscanf(argv[4], "%s\n", opcion);
   }
 
 // Particulas
