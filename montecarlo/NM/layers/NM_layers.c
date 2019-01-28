@@ -429,20 +429,17 @@ int main(int argc, char *argv[]){
   energia(&parts, &pauli, &nuc, params.L, params.ls);
   printf("%f + %f + %f = %f \n", parts.kinetic, parts.pot_nuc, parts.pot_pauli, parts.kinetic+parts.pot_nuc+parts.pot_pauli);
 */
-/*
-  set_box(&parts, params.L);
-  set_p(&parts, params.T);
+  if (opcion == "n"){
+    set_box(&parts, params.L);
+    set_p(&parts, params.T);
+    sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
+    energia(&parts, &pauli, &nuc, params.L, params.ls);
+    save_checkpoint(filename, &parts, &pauli, &nuc, &params);
 
   params.delta_q = pauli.qo*params.L/1500;
   params.delta_p = pauli.po/50;
 
-  sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
-  energia(&parts, &pauli, &nuc, params.L, params.ls);
-  save_checkpoint(filename, &parts, &pauli, &nuc, &params);
-*/
 
-
-  /*
   for (int k = 0; k < checkpoints; k++){
     sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
     load_checkpoint(filename, &parts, &pauli, &nuc, &params);
@@ -465,7 +462,6 @@ int main(int argc, char *argv[]){
 
   }
   printf("--- rho = %f finalizado ---\n", rho);
-  */
 
   // Reenfriado
   sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
