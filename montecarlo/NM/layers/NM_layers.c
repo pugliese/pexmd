@@ -351,7 +351,7 @@ int main(int argc, char *argv[]){
   int factor_pasos = 200;
   int checkpoints = 1;
   char carpeta[20] = "x1/";
-  char opcion[255] = "e";
+  char opcion;
   if (argc >= 2){
     int i = sscanf(argv[1], "%f\n", &rho);
   }
@@ -362,7 +362,9 @@ int main(int argc, char *argv[]){
     int i = sscanf(argv[3], "%d\n", &checkpoints);
   }
   if (argc >= 5){
-    int i = sscanf(argv[4], "%s\n", opcion);
+    int i = sscanf(argv[4], "%c\n", &opcion);
+  }else{
+    opcion = 'e';
   }
 
 // Particulas
@@ -433,15 +435,15 @@ int main(int argc, char *argv[]){
   energia(&parts, &pauli, &nuc, params.L, params.ls);
   printf("%f + %f + %f = %f \n", parts.kinetic, parts.pot_nuc, parts.pot_pauli, parts.kinetic+parts.pot_nuc+parts.pot_pauli);
 */
-  if (opcion == "n"){
+  if (opcion == 'n'){
     set_box(&parts, params.L);
     set_p(&parts, params.T);
     sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
     energia(&parts, &pauli, &nuc, params.L, params.ls);
+    params.delta_q = pauli.qo*params.L/1500;
+    params.delta_p = pauli.po/50;
     save_checkpoint(filename, &parts, &pauli, &nuc, &params);
   }
-  params.delta_q = pauli.qo*params.L/1500;
-  params.delta_p = pauli.po/50;
 
 
   for (int k = 0; k < checkpoints; k++){
