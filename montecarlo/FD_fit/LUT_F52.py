@@ -16,7 +16,6 @@ def Wynn(c, z, p):
       E[n, m+1] = E[n+1, m-1] + 1/(E[n+1, m]-E[n, m])
   return E[0,p]
 
-
 F52_W = lambda z: Wynn(C, z, 20)
 
 F52_A = lambda z: (8/(15*np.pi**0.5))*(np.log(z)**2.5)*(1 + 5*np.pi**2/(8*np.log(z)**2) - (5*3/16)*(7*np.pi**4/360)*np.log(z)**-4)
@@ -37,3 +36,24 @@ z = np.concatenate([z1, z2, z3])
 F = np.concatenate([F1, F2, F3])
 
 np.savetxt("LUT_F52.txt",[z, F])
+
+""" Plot de la F52
+z1 = np.linspace(0, 0.75, 751)
+z2 = np.linspace(0.751, 20, 2000)
+z3 = np.logspace(1.305, 4, 1000)
+zs = np.concatenate([z1,z2,z3])
+F1 = [F52_S(z) for z in z1]
+F2 = [F52_W(z) for z in z2]
+F3 = F52_A(z3)
+F = np.concatenate([F1,F2,F3])
+plt.loglog(zs, F, "b-")
+plt.plot([0.75, 0.65], [1E-3, 1E2], "k--")
+plt.plot([20, 20], [1E-3, 1E2], "k--")
+plt.axis([1E-3, 1E4, 1E-3, 1E2])
+plt.text(0.005, .1, "Sumas\nparciales", fontsize=16)
+plt.text(2, .15, "Wynn", fontsize=16)
+plt.text(100, .15, "Sommerfeld", fontsize=16)
+plt.xlabel("z", fontsize=14)
+plt.ylabel(r"$f_{5/2}$(z)", fontsize=14)
+plt.show()
+"""
