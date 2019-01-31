@@ -75,7 +75,7 @@ float interaction_pauli(float r2, float *p1, float *p2, struct Pauli *pauli){
 
 float interaction_nuc(float r, struct Nuclear *nuc){
   float pot = 0;
-  if (r < nuc->rcut){
+  if (r <= nuc->rcut){
     float r1_pow = pow(nuc->r1/r, nuc->p1);
     float r2_pow = pow(nuc->r2/r, nuc->p2);
     pot = nuc->Vo*(r1_pow - r2_pow)/(1 + exp((r - nuc->d)/nuc->a)) - nuc->shift;
@@ -86,7 +86,7 @@ float interaction_nuc(float r, struct Nuclear *nuc){
 float interaction_coul(float r, struct Coulomb *coul){
   float pot = 0;
   if (r < coul->lambda){
-    pot = coul->q2*exp(r/coul->lambda)/r - coul->shift;
+    pot = coul->q2*exp(-r/coul->lambda)/r - coul->shift;
   }
   return pot;
 }
@@ -144,7 +144,8 @@ int energia(struct Particles *parts, struct Pauli *pauli, struct Nuclear *nuc, s
   parts->kinetic = ((float) 0.5*kin/parts->mass);
   parts->pot_nuc = ((float) pot_n);
   parts->pot_pauli = ((float) pot_p);
-  return parts->kinetic + parts->pot_nuc + parts->pot_pauli;
+  parts->pot_coul = ((float) pot_c);
+  return parts->kinetic + parts->pot_nuc + parts->pot_pauli + parts->pot_coul;
 }
 
 float delta_energia_kin(struct Particles *parts, float *new_p, int i){
@@ -372,18 +373,28 @@ int load_checkpoint(char *filename, struct Particles *parts, struct Pauli *pauli
 
 int main(int argc, char *argv[]){
 
-  float rho = 0.075;
+  float T = 3.0;
+  float T_init = 3.0;
   int factor_pasos = 200;
   int checkpoints = 1;
-  char carpeta[20] = "x1/";
+  char carpeta[20] = "data/";
+  char opcion;
   if (argc >= 2){
-    int i = sscanf(argv[1], "%f\n", &rho);
+    int i = sscanf(argv[1], "%f\n", &T);
   }
   if (argc >= 3){
     int i = sscanf(argv[2], "%d\n", &factor_pasos);
   }
   if (argc >= 4){
     int i = sscanf(argv[3], "%d\n", &checkpoints);
+  }
+  if (argc >= 5){
+    int i = sscanf(argv[4], "%c\n", &opcion);
+  }else{
+    opcion = 'o';
+  }
+  if (argc >= 6){
+    int i = sscanf(argv[5], "%f\n", &T_init);
   }
 
 // Particulas
@@ -424,14 +435,13 @@ int main(int argc, char *argv[]){
   struct Coulomb coul;
   coul.q2 = 1.4403427984368629; // Mev*fm
   coul.lambda = 20; // fm
-  coul.shift = 0;
-  coul.shift = interaction_coul(coul.lambda, &coul);
+  coul.shift = coul.q2*exp(-1)/coul.lambda;
 
 // Parametros
   struct Externos params;
-  //float rho = 0.3;
+  float rho = 0.06;
   params.L = N/pow(rho, 1.0/3.0); // fm ; mayor a 2*qo*scut
-  params.T = 0.5; // MeV
+  params.T = T; // MeV
   params.ls = 1; // Cantidad de layers
   params.delta_q = pauli.qo/2; // fm
   params.delta_p = pauli.po/2; // MeV*10^-22 s/fm
@@ -461,43 +471,51 @@ int main(int argc, char *argv[]){
   energia(&parts, &pauli, &nuc, params.L, params.ls);
   printf("%f + %f + %f = %f \n", parts.kinetic, parts.pot_nuc, parts.pot_pauli, parts.kinetic+parts.pot_nuc+parts.pot_pauli);
 */
-/*
-  set_box(&parts, params.L);
-  set_p(&parts, params.T);
+  if (opcion == 'n'){
+    set_box(&parts, params.L);
+    set_p(&parts, params.T);
+    sprintf(filename, "%scheckpoint_%f.txt", carpeta, T);
+    energia(&parts, &pauli, &nuc, &coul, params.L, params.ls);
+    params.delta_q = pauli.qo*params.L/500;
+    params.delta_p = pauli.po/50;
+    save_checkpoint(filename, &parts, &pauli, &nuc, &coul, &params);
+  }
+  if (opcion == 'e'){
+    sprintf(filename, "%scheckpoint_%f.txt", carpeta, T_init);
+    load_checkpoint(filename, &parts, &pauli, &nuc, &coul, &params);
+    energia(&parts, &pauli, &nuc, &coul, params.L, params.ls);
+    params.T = T;
+    params.delta_q = pauli.qo*params.L/500;
+    params.delta_p = pauli.po/100;
+    sprintf(filename, "%scheckpoint_%f.txt", carpeta, T);
+    save_checkpoint(filename, &parts, &pauli, &nuc, &coul, &params);
+  }
 
-  params.delta_q = pauli.qo*params.L/1500;
-  params.delta_p = pauli.po/50;
-
-  sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
-  energia(&parts, &pauli, &nuc, params.L, params.ls);
-  save_checkpoint(filename, &parts, &pauli, &nuc, &params);
-*/
 
 
-  /*
   for (int k = 0; k < checkpoints; k++){
-    sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
-    load_checkpoint(filename, &parts, &pauli, &nuc, &params);
+    sprintf(filename, "%scheckpoint_%f.txt", carpeta, T);
+    load_checkpoint(filename, &parts, &pauli, &nuc, &coul, &params);
 
-    params.delta_q = pauli.qo*params.L/1500;
-    params.delta_p = pauli.po/500;
+    params.delta_q = pauli.qo*params.L/1000;
+    params.delta_p = pauli.po/100;
 
     start = clock();
-    sprintf(filename, "%senergias_%f.txt", carpeta, rho);
-    int aceptados = muestrear_energias(filename, &parts, &pauli, &nuc, &params, pasos, 0, 0);
+    sprintf(filename, "%senergias_%f.txt", carpeta, T);
+    int aceptados = muestrear_energias(filename, &parts, &pauli, &nuc, &coul, &params, pasos, 0, 0);
     end = clock();
     time = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("%d/%d) rho = %f en %f segundos con %2.1f%% de aceptacion\n", k+1, checkpoints, rho, time,  100*((float) aceptados)/pasos);
-    sprintf(filename, "%scheckpoint_%f_18.txt", carpeta, rho);
-    energia(&parts, &pauli, &nuc, params.L, params.ls);
-    save_checkpoint(filename, &parts, &pauli, &nuc, &params);
+    printf("%d/%d) T = %f en %f segundos con %2.1f%% de aceptacion\n", k+1, checkpoints, T, time,  100*((float) aceptados)/pasos);
+    sprintf(filename, "%scheckpoint_%f.txt", carpeta, T);
+    energia(&parts, &pauli, &nuc, &coul, params.L, params.ls);
+    save_checkpoint(filename, &parts, &pauli, &nuc, &coul, &params);
 
-    sprintf(filename, "%sdistribucion_%f.txt", carpeta, rho);
-    aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &params, 1, 0, 0);
+    sprintf(filename, "%sdistribucion_%f.txt", carpeta, T);
+    aceptados = muestrear_impulsos(filename, &parts, &pauli, &nuc, &coul, &params, 1, 0, 0);
 
   }
-  printf("--- rho = %f finalizado ---\n", rho);
-  */
+  printf("--- T = %f finalizado ---\n", T);
+
 
   free(parts.q);
   free(parts.p);
