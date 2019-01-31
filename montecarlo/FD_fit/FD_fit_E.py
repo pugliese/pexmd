@@ -143,30 +143,43 @@ if (tipo == "h" or tipo == "h&p"):
   if(tipo == "h&p"):
     np.savetxt(rho+"/presiones_N=1000.txt", [Ts,P])
 
+
+deg = lambda E: 4*np.pi*np.sqrt(2*m**3*E)*(L/h)**3
+long_term = lambda T: (2*np.pi*h_bar**2/(m*T))**0.5
+Ef = h_bar**2/(2*m)*(6*np.pi**2*N/V)**(2/3)
+
+data = np.loadtxt("LUT_F32.txt")
+z = data[0,:]
+F32 = data[1,:]
+
+F32_A = lambda z: (4/(3*np.pi**0.5))*(np.log(z)**1.5)*(1 + np.pi**2/(8*np.log(z)**2) + (7*np.pi**4/640)*np.log(z)**-4)
+
+def dame_z(Y):
+  if (30<=Y):
+    z_inf = 30
+    z_sup = 2*z_inf
+    while(F32_A(z_sup) < Y):
+      z_sup *= 2
+    while (Y*1E-6 < np.abs(F32_A(z_med)-Y)):
+      z_med = (z_inf+z_sup)//2
+      if(F32_A(z_med)<Y):
+        z_inf = z_med
+      else:
+        z_sup = z_med
+    return z_med
+  else:
+    inf = 0
+    sup = len(z)-1
+    while (inf<sup-1):
+      med = (inf+sup)//2
+      if(F32[med]<Y):
+        inf = med
+      else:
+        sup = med
+    m = (F32[inf+1]-F32[inf])/(z[inf+1]-z[inf])
+    return z[inf]+(Y-F32[inf])/m
+
 if (tipo == "f&v"):
-
-  deg = lambda E: 4*np.pi*np.sqrt(2*m**3*E)*(L/h)**3
-  long_term = lambda T: (2*np.pi*h_bar**2/(m*T))**0.5
-  Ef = h_bar**2/(2*m)*(6*np.pi**2*N/V)**(2/3)
-
-  data = np.loadtxt("LUT_F32.txt")
-  z = data[0,:]
-  F32 = data[1,:]
-
-  def mu(Y, T):
-    if (30<=Y):
-      return Ef*(1-np.pi**2/12*(T/Ef)**2)
-    else:
-      inf = 0
-      sup = len(z)-1
-      while (inf<sup-1):
-        med = (inf+sup)//2
-        if(F32[med]<Y):
-          inf = med
-        else:
-          sup = med
-      m = (F32[inf+1]-F32[inf])/(z[inf+1]-z[inf])
-      return np.log(z[inf]+(Y-F32[inf])/m)*T
 
   MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
   FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
@@ -190,7 +203,7 @@ if (tipo == "f&v"):
     rango = np.linspace(0, E[-1], 10000)
     exacto_MB = MB(rango, Ts[k])
     plt.plot(rango, exacto_MB, "r-")
-    mus[i] = mu(long_term(Ts[k])**3*N/V, Ts[k])
+    mus[i] = np.log(dame_z(long_term(Ts[k])**3*N/V)*Ts[k])
     exacto_FD = FD(rango, mus[i], Ts[k])
     plt.plot(rango, exacto_FD, "k--")
     #plt.axis([0, 2, 0, 2500])
@@ -207,34 +220,18 @@ if (tipo == "p"):
   z32 = data[0,:]
   F32 = data[1,:]
 
-  def mu(T, V):
-    Ef = h_bar**2/(2*m)*(6*np.pi**2*N/V)**(2/3)
-    Y = long_term(T)**3*N/V
-    if (30<=Y):
-      return Ef*(1-np.pi**2/12*(T/Ef)**2)
-    else:
-      inf = 0
-      sup = len(z32)-1
-      while (inf<sup-1):
-        med = (inf+sup)//2
-        if(F32[med]<Y):
-          inf = med
-        else:
-          sup = med
-      pend = (F32[inf+1]-F32[inf])/(z32[inf+1]-z32[inf])
-      return np.log(z32[inf]+(Y-F32[inf])/pend)*T
-
   data = np.loadtxt("LUT_F52.txt")
   z52 = data[0,:]
   F52 = data[1,:]
 
+  F52_A = lambda z: (8/(15*np.pi**0.5))*(np.log(z)**2.5)*(1 + 5*np.pi**2/(8*np.log(z)**2) - (5*3/16)*(7*np.pi**4/360)*np.log(z)**-4)
+
   def Pres(T,V):
-    Ef = h_bar**2/(2*m)*(6*np.pi**2*N/V)**(2/3)
     Y = long_term(T)**3*N/V
-    if (30<=Y):
-      return .4*(N/V)*Ef*(1-5*np.pi**2/12*(T/Ef)**2)
+    z = dame_z(Y)
+    if (F52[-1]<=Y):
+      return F52_A(z)
     else:
-      z = np.exp(mu(T, V)/T)
       inf = 0
       sup = len(z52)-1
       while (inf<sup-1):
