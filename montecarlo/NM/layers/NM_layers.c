@@ -76,7 +76,7 @@ float interaction_pauli(float r2, float *p1, float *p2, struct Pauli *pauli){
 
 float interaction_nuc(float r, struct Nuclear *nuc){
   float pot = 0;
-  if (r < nuc->rcut){
+  if (r <= nuc->rcut){
     float r1_pow = pow(nuc->r1/r, nuc->p1);
     float r2_pow = pow(nuc->r2/r, nuc->p2);
     pot = nuc->Vo*(r1_pow - r2_pow)/(1 + exp((r - nuc->d)/nuc->a)) - nuc->shift;
@@ -350,7 +350,7 @@ int main(int argc, char *argv[]){
   float rho = 0.075;
   int factor_pasos = 200;
   int checkpoints = 1;
-  char carpeta[20] = "x1/";
+  char carpeta[20] = "QCNMx0.5/";
   char opcion;
   if (argc >= 2){
     int i = sscanf(argv[1], "%f\n", &rho);
@@ -390,7 +390,8 @@ int main(int argc, char *argv[]){
 
 // Potencial nuclear
   struct Nuclear nuc;
-  nuc.Vo = 25.93; // MeV
+  //nuc.Vo = 25.93; // MeV
+  nuc.Vo = 25.93/2; // MeV
   nuc.r1 = 1.757; // fm
   nuc.r2 = 1.771; // fm
   nuc.p1 = 6.2;

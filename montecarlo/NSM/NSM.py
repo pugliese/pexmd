@@ -61,17 +61,16 @@ if(tipo == 't'):
     E_nuc.append(data[:,1])
     E_pauli.append(data[:,2])
     E.append(E_kin[-1] + E_nuc[-1] + E_pauli[-1])
-    """
     plt.subplot(n_Ts//2, 2, k+1)
     plt.plot(E[-1]/N, "b-")
     plt.plot(E_kin[-1]/N, "r--")
     plt.plot(E_nuc[-1]/N, "k--")
     plt.plot(E_pauli[-1]/N, "g--")
-    plt.legend([r"$\T=%f MeV$" %Ts[k]])
-    """
+    plt.legend([r"$T=%f MeV$" %Ts[k]])
     Es[k] = np.mean(E[-1])/N
   plt.figure()
   plt.plot(Ts, Es, "o-")
+  """
   plt.plot([0.04, 0.04], [-50, -10], "k--")
   plt.plot([0.06, 0.06], [-50, -10], "k--")
   plt.plot([0.095, 0.095], [-50, -10], "k--")
@@ -80,6 +79,7 @@ if(tipo == 't'):
   plt.text(0.045, -47, "s\np\na\ng\nh\ne\nt\nt\ni")
   plt.text(0.063, -20, "lasagna")
   plt.text(0.115, -20, "agujero")
+  """
   plt.xlabel(r"$T [MeV]$")
   plt.ylabel(r"$E [MeV]$")
   plt.show()
