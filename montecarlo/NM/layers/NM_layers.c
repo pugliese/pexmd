@@ -350,7 +350,7 @@ int main(int argc, char *argv[]){
   float rho = 0.075;
   int factor_pasos = 200;
   int checkpoints = 1;
-  char carpeta[20] = "QCNMx0.5/";
+  char carpeta[20] = "QCNMx0.66/";
   char opcion;
   if (argc >= 2){
     int i = sscanf(argv[1], "%f\n", &rho);
