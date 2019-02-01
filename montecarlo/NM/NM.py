@@ -52,33 +52,36 @@ if(tipo == 't'):
   E = []
   Es = np.zeros(n_rhos)
 
+if (n_rhos < 11):
+  plt.figure()
+
   for k in range(n_rhos):
     data = np.loadtxt(caso+"energias_%f.txt" %(rhos[k]), dtype=np.float32)
     E_kin.append(data[:,0])
     E_nuc.append(data[:,1])
     E_pauli.append(data[:,2])
     E.append(E_kin[-1] + E_nuc[-1] + E_pauli[-1])
-    """
-    plt.subplot(n_rhos//2, 2, k+1)
-    plt.plot(E[-1]/N, "b-")
-    plt.plot(E_kin[-1]/N, "r--")
-    plt.plot(E_nuc[-1]/N, "k--")
-    plt.plot(E_pauli[-1]/N, "g--")
-    plt.legend([r"$\rho=%f fm^{-3}$" %rhos[k]])
-    """
+    if (n_rhos < 11):
+      plt.subplot(n_rhos//2, 2, k+1)
+      plt.plot(E[-1]/N, "b-")
+      plt.plot(E_kin[-1]/N, "r--")
+      plt.plot(E_nuc[-1]/N, "k--")
+      plt.plot(E_pauli[-1]/N, "g--")
+      plt.legend([r"$\rho=%f fm^{-3}$" %rhos[k]])
     Es[k] = np.mean(E[-1])/N
   plt.figure()
   plt.plot(rhos, Es, "o-")
-  plt.plot([0.04, 0.04], [-50, -10], "k--")
-  plt.plot([0.06, 0.06], [-50, -10], "k--")
-  plt.plot([0.095, 0.095], [-50, -10], "k--")
-  plt.plot([0.1625, 0.1625], [-50, -10], "k--")
-  plt.text(0.01, -40, "ñoqui")
-  plt.text(0.045, -47, "s\np\na\ng\nh\ne\nt\nt\ni")
-  plt.text(0.063, -20, "lasagna")
-  plt.text(0.115, -20, "agujero")
-  plt.xlabel(r"$\rho [fm^{-3}]$")
-  plt.ylabel(r"$E [MeV]$")
+  if (caso == 'layers/x1/'):
+    plt.plot([0.04, 0.04], [-50, -10], "k--")
+    plt.plot([0.06, 0.06], [-50, -10], "k--")
+    plt.plot([0.095, 0.095], [-50, -10], "k--")
+    plt.plot([0.1625, 0.1625], [-50, -10], "k--")
+    plt.text(0.01, -40, "ñoqui")
+    plt.text(0.045, -47, "s\np\na\ng\nh\ne\nt\nt\ni")
+    plt.text(0.063, -20, "lasagna")
+    plt.text(0.115, -20, "agujero")
+    plt.xlabel(r"$\rho [fm^{-3}]$")
+    plt.ylabel(r"$E [MeV]$")
   plt.show()
 
 pressure = ct.CDLL('../pressure.so')
@@ -273,7 +276,7 @@ if (tipo == "ap"):
 
 if (tipo=="vmd"):
   for k in range(n_rhos):
-    new_filename = "sistema_{0}.lammpstrj".format(rhos[k])
+    new_filename = caso+"vmd/sistema_{0}.lammpstrj".format(rhos[k])
     data = np.loadtxt(caso+"distribucion_%f.txt" %(rhos[k]), dtype=np.float32)
     L = (1000/rhos[k])**(1.0/3.0)
     header1 = "ITEM: TIMESTEP\n0\nITEM: NUMBER OF ATOMS\n{0}\n".format(1000)

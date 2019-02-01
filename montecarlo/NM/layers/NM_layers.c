@@ -391,7 +391,8 @@ int main(int argc, char *argv[]){
 // Potencial nuclear
   struct Nuclear nuc;
   //nuc.Vo = 25.93; // MeV
-  nuc.Vo = 25.93/2; // MeV
+  //nuc.Vo = 25.93/2; // MeV
+  nuc.Vo = 25.93*2.0/3.0; // MeV
   nuc.r1 = 1.757; // fm
   nuc.r2 = 1.771; // fm
   nuc.p1 = 6.2;
