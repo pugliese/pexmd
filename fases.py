@@ -489,6 +489,38 @@ def area_teo(D, N):
   area = 4*(2*Hc-1)*np.sum(np.sqrt((xs-1-np.log(xs))/(2*Hc-xs)))/N
   return area
 
+def curva_teo(E, D):
+  N = 10000
+  p_inf = np.sqrt(4*E)
+  ps = np.linspace(-p_inf, p_inf, N)
+  q2 = -ps**2 - 2*np.log((E-ps**2/4)/D)
+  i = 0
+  print(q2[0])
+  while(i<N and 0<=q2[i]):
+    i+=1
+  j = i
+  while( j<N and q2[j]<0):
+    j+=1
+  plt.figure()
+  if (i==N):
+    plt.plot(ps, np.sqrt(q2), "b-")
+    plt.plot(ps, -np.sqrt(q2), "r-")
+  else:
+    plt.plot(ps[:i], np.sqrt(q2[:i]), "b-")
+    plt.plot(ps[:i], -np.sqrt(q2[:i]), "r-")
+    plt.plot(ps[j:], np.sqrt(q2[j:]), "b-")
+    plt.plot(ps[j:], -np.sqrt(q2[j:]), "r-")
+    plt.plot(ps[i:j], -np.sqrt(-q2[i:j]), "b--")
+    plt.plot(ps[i:j], np.sqrt(-q2[i:j]), "r--")
+  plt.plot([-1.1*p_inf, 1.1*p_inf], [0, 0], "k-")
+  plt.axis([-1.1*p_inf, 1.1*p_inf, -np.sqrt(q2[1]), np.sqrt(q2[1])])
+  plt.plot([p_inf, p_inf], [-np.sqrt(q2[1]), np.sqrt(q2[1])], "k-")
+  plt.plot([-p_inf, -p_inf], [-np.sqrt(q2[1]), np.sqrt(q2[1])], "k--")
+  plt.xlabel(r"$p^*$")
+  plt.ylabel(r"$q^*$")
+  plt.title(r"$D^*=%1.2f$   $E^*=%1.2f$" %(D,E))
+  plt.show()
+
 # ------------------ Volumen fases -------------------------- #
 
 def avanzarN_fp(parts, pot, dt, Nstep):
