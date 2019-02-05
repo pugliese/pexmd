@@ -350,7 +350,7 @@ int main(int argc, char *argv[]){
   float rho = 0.075;
   int factor_pasos = 200;
   int checkpoints = 1;
-  char carpeta[20] = "QCNMx0.66/";
+  char carpeta[20] = "QCNMx0.5/";
   char opcion;
   if (argc >= 2){
     int i = sscanf(argv[1], "%f\n", &rho);
@@ -392,7 +392,7 @@ int main(int argc, char *argv[]){
   struct Nuclear nuc;
   //nuc.Vo = 25.93; // MeV
   //nuc.Vo = 25.93/2; // MeV
-  nuc.Vo = 25.93*2.0/3.0; // MeV
+  nuc.Vo = 25.93/2.0; // MeV
   nuc.r1 = 1.757; // fm
   nuc.r2 = 1.771; // fm
   nuc.p1 = 6.2;
