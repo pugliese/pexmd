@@ -52,8 +52,8 @@ if(tipo == 't'):
   E = []
   Es = np.zeros(n_rhos)
 
-if (n_rhos < 11):
-  plt.figure()
+  if (n_rhos < 11):
+    plt.figure()
 
   for k in range(n_rhos):
     data = np.loadtxt(caso+"energias_%f.txt" %(rhos[k]), dtype=np.float32)
@@ -275,15 +275,34 @@ if (tipo == "ap"):
 
 
 if (tipo=="vmd"):
-  for k in range(n_rhos):
-    new_filename = caso+"vmd/sistema_{0}.lammpstrj".format(rhos[k])
-    data = np.loadtxt(caso+"distribucion_%f.txt" %(rhos[k]), dtype=np.float32)
-    L = (1000/rhos[k])**(1.0/3.0)
+
+  def data_vmd(filename):
+    caso_aux = filename.split('/')[:-1]
+    caso = ''
+    for c in caso_aux:
+      caso = caso + c + '/'
+    archivo = filename[:-4].split('/')[-1]
+    params = archivo.split('_')[1:]
+    vmd_name = caso+'vmd/sistema'
+    for p in params:
+      vmd_name = vmd_name + '_'+p
+    vmd_name = vmd_name + '.lammpstrj'
+
+    rho = float(params[0])
+    L = (1000/rho)**(1.0/3)
+
+    data = np.loadtxt(filename)
     header1 = "ITEM: TIMESTEP\n0\nITEM: NUMBER OF ATOMS\n{0}\n".format(1000)
     header2 = "ITEM: BOX BOUNDS pp pp pp\n{0} {1}\n{2} {3}\n{4} {5}\n".format(0, L, 0, L, 0, L)
     header3 = "ITEM: ATOMS type x y z\n"
-    f = open(new_filename, "w")
+    f = open(vmd_name, "w")
     f.write(header1 + header2 + header3)
     for i in range(len(data[:,0])//3):
       f.write("{0} {1} {2} {3}\n".format(i//250, data[3*i, 0], data[3*i+1, 0], data[3*i+2, 0]))
     f.close()
+
+  for k in range(n_rhos):
+    new_filename = caso+"vmd/sistema_{0}.lammpstrj".format(rhos[k])
+    L = (1000/rhos[k])**(1.0/3.0)
+    #data_vmd(caso+"distribucion_%f.txt" %(rhos[k]), L, new_filename)
+    data_vmd(caso+"distribucion_%f.txt" %(rhos[k]))
