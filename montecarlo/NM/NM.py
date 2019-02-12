@@ -75,49 +75,89 @@ if(tipo == 't'):
     plt.plot([0.04, 0.04], [-50, -10], "k--")
     plt.plot([0.06, 0.06], [-50, -10], "k--")
     plt.plot([0.095, 0.095], [-50, -10], "k--")
+    plt.plot([0.1525, 0.1525], [-50, -10], "k--")
     plt.plot([0.1625, 0.1625], [-50, -10], "k--")
     plt.text(0.01, -40, "ñoqui")
-    plt.text(0.045, -47, "s\np\na\ng\nh\ne\nt\nt\ni")
+    plt.text(0.045, -47, "spaghetti", rotation=90)
     plt.text(0.063, -20, "lasagna")
-    plt.text(0.115, -20, "agujero")
-    plt.xlabel(r"$\rho [fm^{-3}]$")
-    plt.ylabel(r"$E [MeV]$")
+    plt.text(0.115, -20, "tuneles", rotation=90)
+    plt.text(0.155, -20, "burbuja")
+  plt.xlabel(r"$\rho [fm^{-3}]$")
+  plt.ylabel(r"$E [MeV]$")
   plt.show()
 
 
 if (tipo == 'tt'):
-  rhos = [float(f.split("_")[1]) for f in files]
-  Ts = [float(f.split("_")[2][:-4]) for f in files]
-  rhos = np.unique(rhos)
-  Ts = np.unique(Ts)
+  if (len(glob.glob(caso+'EvsrhovsT.txt')) == 0 or len(glob.glob(caso+'stdEvsrhovsT.txt')) == 0):
+    rhos = [float(f.split("_")[1]) for f in files]
+    Ts = [float(f.split("_")[2][:-4]) for f in files]
+    rhos = np.unique(rhos)
+    Ts = np.unique(Ts)
+    n_rhos = len(rhos)
+    n_Ts = len(Ts)
+    E_kin = []
+    E_nuc = []
+    E_pauli = []
+    E = []
+    Es = np.zeros((n_Ts+1, n_rhos+1))
+    std_Es = np.zeros((n_Ts+1, n_rhos+1))
+    for j in range(n_Ts):
+      for k in range(n_rhos):
+        data = np.loadtxt(caso+"energias_%f_%f.txt" %(rhos[k], Ts[j]), dtype=np.float32)
+        E_kin.append(data[:,0])
+        E_nuc.append(data[:,1])
+        E_pauli.append(data[:,2])
+        E.append(E_kin[-1] + E_nuc[-1] + E_pauli[-1])
+        Es[j+1,k+1] = np.mean(E[-1])/N
+        std_Es[j+1,k+1] = np.std(E[-1])/N
+    Es[0,1:] = rhos
+    Es[1:,0] = Ts
+    Es[0,0] = '9.7'
+    std_Es[0,1:] = rhos
+    std_Es[1:,0] = Ts
+    std_Es[0,0] = '9.7'
+    np.savetxt(caso+'EvsrhovsT.txt', Es)
+    np.savetxt(caso+'stdEvsrhovsT.txt', std_Es)
+
+  data = np.loadtxt(caso+'EvsrhovsT.txt')
+  std_data = np.loadtxt(caso+'stdEvsrhovsT.txt')
+  Es = data[1:,1:]
+  std_Es = std_data[1:,1:]
+  rhos = data[0,1:]
+  Ts = data[1:,0]
   n_rhos = len(rhos)
   n_Ts = len(Ts)
-  E_kin = []
-  E_nuc = []
-  E_pauli = []
-  E = []
-  Es = np.zeros((n_Ts, n_rhos))
-  for j in range(n_Ts):
-    for k in range(n_rhos):
-      data = np.loadtxt(caso+"energias_%f_%f.txt" %(rhos[k], Ts[j]), dtype=np.float32)
-      E_kin.append(data[:,0])
-      E_nuc.append(data[:,1])
-      E_pauli.append(data[:,2])
-      E.append(E_kin[-1] + E_nuc[-1] + E_pauli[-1])
-      Es[j,k] = np.mean(E[-1])/N
   plt.figure()
   for j in range(n_Ts):
-    plt.plot(rhos, Es[j,:], "o-")
+    plt.errorbar(rhos, Es[j,:], yerr=std_Es[j,:], fmt="o--")
   plt.legend([r"$T = %1.1f MeV$" %(T) for T in Ts])
-  plt.xlabel(r"$\rho$")
-  plt.ylabel(r"$E$")
+  if (caso=='layers/QCNMx0.5/Temperatura/'):
+    curva_T = np.array([3.5 + (r>0.13)*100*(0.13-r) for r in rhos])
+    curva_T_idx_sup = [Ts.index(c) for c in (curva_T+0.5)]
+    curva_T_idx_inf = [Ts.index(c) for c in (curva_T-0.5)]
+    curva_E_sup = np.array([Es[j,curva_T_idx_sup[j]] for j in range(len(rhos))])
+    curva_E_inf = np.array([Es[j,curva_T_idx_inf[j]] for j in range(len(rhos))])
+    plt.fill_between(rhos, curva_E_sup, curva_E_inf, facecolor='grey')
+    plt.axis([0, 0.017, 1.1*np.min(Es), 1.1*np.max(Es)])
+    plt.plot([0.045, 0.045], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
+    plt.plot([0.065, 0.065], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
+    plt.plot([0.095, 0.095], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
+    plt.plot([0.125, 0.125], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
+    plt.plot([0.155, 0.155], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
+    plt.text(0.03, (np.min(Es)+np.max(Es))/2, "ñoqui")
+    plt.text(0.055, (np.min(Es)+np.max(Es))/2, "s\np\na\ng\nh\ne\nt\nt\ni")
+    plt.text(0.063, (np.min(Es)+np.max(Es))/2, "lasagna")
+    plt.text(0.105, (np.min(Es)+np.max(Es))/2, "tuneles")
+    plt.text(0.130, (np.min(Es)+np.max(Es))/2, "burbuja")
+  plt.xlabel(r"$\rho$ [$fm^{-3}$]")
+  plt.ylabel(r"$E$ [$MeV$]")
   plt.figure()
   seleccion_rhos = [0, 3, 6, 9, -1]
   for k in seleccion_rhos:
-    plt.plot(Ts, Es[:,k], "o-")
+    plt.errorbar(Ts, Es[:,k], yerr=std_Es[:,k], fmt="o-")
   plt.legend([r"$\rho = %1.2f fm^{-3}$" %(rhos[k]) for k in seleccion_rhos], loc=4)
-  plt.xlabel(r"$T$")
-  plt.ylabel(r"$E$")
+  plt.xlabel(r"$T$ [$MeV$]")
+  plt.ylabel(r"$E$ [$MeV$]")
   plt.show()
 
 pressure = ct.CDLL('../pressure.so')
@@ -311,6 +351,11 @@ if (tipo == "ap"):
 
 
 if (tipo=="vmd"):
+
+  files = glob.glob(caso+"distribucion_*")
+  rhos = [float(f.split("_")[1][:-4]) for f in files]
+  n_rhos = len(rhos)
+  rhos = np.sort(rhos)
 
   def data_vmd(filename):
     caso_aux = filename.split('/')[:-1]
