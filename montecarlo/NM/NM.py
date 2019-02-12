@@ -84,6 +84,42 @@ if(tipo == 't'):
     plt.ylabel(r"$E [MeV]$")
   plt.show()
 
+
+if (tipo == 'tt'):
+  rhos = [float(f.split("_")[1]) for f in files]
+  Ts = [float(f.split("_")[2][:-4]) for f in files]
+  rhos = np.unique(rhos)
+  Ts = np.unique(Ts)
+  n_rhos = len(rhos)
+  n_Ts = len(Ts)
+  E_kin = []
+  E_nuc = []
+  E_pauli = []
+  E = []
+  Es = np.zeros((n_Ts, n_rhos))
+  for j in range(n_Ts):
+    for k in range(n_rhos):
+      data = np.loadtxt(caso+"energias_%f_%f.txt" %(rhos[k], Ts[j]), dtype=np.float32)
+      E_kin.append(data[:,0])
+      E_nuc.append(data[:,1])
+      E_pauli.append(data[:,2])
+      E.append(E_kin[-1] + E_nuc[-1] + E_pauli[-1])
+      Es[j,k] = np.mean(E[-1])/N
+  plt.figure()
+  for j in range(n_Ts):
+    plt.plot(rhos, Es[j,:], "o-")
+  plt.legend([r"$T = %1.1f MeV$" %(T) for T in Ts])
+  plt.xlabel(r"$\rho$")
+  plt.ylabel(r"$E$")
+  plt.figure()
+  seleccion_rhos = [0, 3, 6, 9, -1]
+  for k in seleccion_rhos:
+    plt.plot(Ts, Es[:,k], "o-")
+  plt.legend([r"$\rho = %1.2f fm^{-3}$" %(rhos[k]) for k in seleccion_rhos], loc=4)
+  plt.xlabel(r"$T$")
+  plt.ylabel(r"$E$")
+  plt.show()
+
 pressure = ct.CDLL('../pressure.so')
 
 if(tipo == 'e'):
@@ -284,14 +320,16 @@ if (tipo=="vmd"):
     archivo = filename[:-4].split('/')[-1]
     params = archivo.split('_')[1:]
     vmd_name = caso+'vmd/sistema'
+    data_file = caso+"distribucion"
     for p in params:
       vmd_name = vmd_name + '_'+p
+      data_file = data_file + '_'+p
     vmd_name = vmd_name + '.lammpstrj'
+    data_file = data_file + ".txt"
 
     rho = float(params[0])
     L = (1000/rho)**(1.0/3)
-
-    data = np.loadtxt(filename)
+    data = np.loadtxt(data_file)
     header1 = "ITEM: TIMESTEP\n0\nITEM: NUMBER OF ATOMS\n{0}\n".format(1000)
     header2 = "ITEM: BOX BOUNDS pp pp pp\n{0} {1}\n{2} {3}\n{4} {5}\n".format(0, L, 0, L, 0, L)
     header3 = "ITEM: ATOMS type x y z\n"
@@ -301,8 +339,5 @@ if (tipo=="vmd"):
       f.write("{0} {1} {2} {3}\n".format(i//250, data[3*i, 0], data[3*i+1, 0], data[3*i+2, 0]))
     f.close()
 
-  for k in range(n_rhos):
-    new_filename = caso+"vmd/sistema_{0}.lammpstrj".format(rhos[k])
-    L = (1000/rhos[k])**(1.0/3.0)
-    #data_vmd(caso+"distribucion_%f.txt" %(rhos[k]), L, new_filename)
-    data_vmd(caso+"distribucion_%f.txt" %(rhos[k]))
+  for f in files:
+    data_vmd(f)

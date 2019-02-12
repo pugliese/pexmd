@@ -346,15 +346,15 @@ if (sys.argv[1] == "efp"):
 # ------------------ Muestreo -------------------------- #
 
 def muestreo(qinit, pmax, p_step, D, h=1E-3, rebs = False, pmin = 0):
-  #pauli = pexmd.interaction.Pauli(200, D, 1, 1)
-  pauli = pexmd.interaction.Pauli(200, D, 1.664, 120)
+  pauli = pexmd.interaction.Pauli(200, D, 1, 1)
+  #pauli = pexmd.interaction.Pauli(200, D, 1.664, 120)
   h = 0.001
   #Nq = int(pmax/p_step) + 1
   pinits = np.arange(-pmax, -pmin, p_step)
   #pinits = np.linspace(-pmax, 0, Nq)
   pinits = np.array(pinits, dtype = np.float32)
   parts = pexmd.particles.PointParticles(2)
-  parts.mass = 0.51
+  parts.mass = 1
   fasesq = []
   fasesp = []
   rs = []
@@ -453,6 +453,14 @@ def barrido(qo, po, filename="None", D=10000, tol=1E-2):
     plt.close()#plt.show()
   q, p, r = trayectoria_fp(qinit, pinf, pauli, integ.dt, parts)
   return np.array(q), np.array(p)
+
+def p_inf(Ds, tols):
+  res = np.zeros_like(Ds)
+  for k in range(len(Ds)):
+    q, p = barrido(1, 1, "None", Ds[k], tols[k])
+    res[k] = p[0]
+  return res
+
 
 
 def cuadraturas(qs, ps):

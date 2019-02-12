@@ -152,20 +152,24 @@ data = np.loadtxt("LUT_F32.txt")
 z = data[0,:]
 F32 = data[1,:]
 
-F32_A = lambda z: (4/(3*np.pi**0.5))*(np.log(z)**1.5)*(1 + np.pi**2/(8*np.log(z)**2) + (7*np.pi**4/640)*np.log(z)**-4)
+F32_A = lambda z: (4/(3*np.pi**0.5))*(np.log(z)**1.5)*(1 + np.pi**2/(8*np.log(z)**2) + (7*np.pi**4/640)*np.log(z)**(-4))
 
 def dame_z(Y):
+  F32_A = lambda z: (4/(3*np.pi**0.5))*(np.log(z)**1.5)*(1 + np.pi**2/(8*np.log(z)**2) + (7*np.pi**4/640)*np.log(z)**(-4))
   if (30<=Y):
-    z_inf = 30
+    z_inf = 30.0
     z_sup = 2*z_inf
     while(F32_A(z_sup) < Y):
       z_sup *= 2
-    while (Y*1E-6 < np.abs(F32_A(z_med)-Y)):
-      z_med = (z_inf+z_sup)//2
+    z_med = (z_inf+z_sup)/2
+    print(Y, z_sup)
+    while (Y*1E-2 < np.abs(F32_A(z_med)-Y)):
+      z_med = (z_inf+z_sup)/2
       if(F32_A(z_med)<Y):
         z_inf = z_med
       else:
         z_sup = z_med
+    print("Fin")
     return z_med
   else:
     inf = 0
@@ -184,31 +188,53 @@ if (tipo == "f&v"):
   MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
   FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
 
-  seleccion = range(n_temps)
-  #seleccion = [0, 1, 3, 5, 7, 9, 11, 12, 13]
+  #seleccion = range(n_temps)
+
+  if (rho[-1] == "0"):
+    seleccion = [8,10,12,13,14,15,16, 20, -1]
+  if (rho[-1] == "1"):
+    seleccion = [0,1,2,3,4,5,6, 8, 10]
+  if (rho[-1] == "2"):
+    seleccion = range(9)
+  if (rho[0] == "M"):
+    seleccion = range(9)
 
   mus = np.zeros(len(seleccion))
   i = 0
   plt.figure()
+  plt.title(r"$\rho^* = %f$" %((qo/L)**3))
   for k in seleccion:
     data = np.loadtxt(rho+"/histograma_%d_T=%f.txt" %(Nbins, Ts[k]))
     E = data[0,:]
     ns = data[1,:]
     if (n_temps > 1):
       plt.subplot(3, 3, i+1)
-    plt.xlabel(r"$E$")
-    plt.plot(E,  ns, "ko")
-    plt.text((min(E)+ 5*max(E))/6, 0.9*max(ns), "T=%f" %(Ts[k]))
+      plt.subplots_adjust(left = 0.05, right = 0.98, bottom = 0.05, top = 0.98, wspace = 0.1, hspace = 0.125)
+      #plt.subplots_adjust(left  = 0.125, right = 0.9, bottom = 0.1, top = 0.9, wspace = 0.2, hspace = 0.2)
+    plt.plot(E,  ns/1000, "ko")
     #plt.text(1, 1700, "T=%f" %(Ts[k]))
     rango = np.linspace(0, E[-1], 10000)
-    exacto_MB = MB(rango, Ts[k])
+    exacto_MB = MB(rango, Ts[k])/1000
     plt.plot(rango, exacto_MB, "r-")
-    mus[i] = np.log(dame_z(long_term(Ts[k])**3*N/V)*Ts[k])
-    exacto_FD = FD(rango, mus[i], Ts[k])
+    print(dame_z(long_term(Ts[k])**3*N/V), long_term(Ts[k])**3*N/V)
+    mus[i] = np.log(dame_z(long_term(Ts[k])**3*N/V))*Ts[k]
+    exacto_FD = FD(rango, mus[i], Ts[k])/1000
     plt.plot(rango, exacto_FD, "k--")
+    #plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.tick_params(axis='both', which='major', labelsize=14)
+
+    plt.axis([0, max(E), 0, 1.05*max(exacto_MB)])
+    plt.text((min(E)+ 4*max(E))/6, 0.5*max(exacto_MB), "T=%1.3fMeV" %(Ts[k]), fontsize=16)
     #plt.axis([0, 2, 0, 2500])
+    if (i==7):
+      plt.xlabel(r"$E$ [$MeV$]", fontsize=18)
+    if (i==3):
+      plt.ylabel(r"$f(E)$ [$GeV^{-1}$]", fontsize=18)
+    if (i==4):
+      plt.legend(["Data", "Boltzmann", "Fermi"], fontsize=20)
     i+=1
   plt.show()
+  mus = np.array([np.log(dame_z(long_term(Ts[k])**3*N/V))*T for T in Ts])
 
 if (tipo == "p"):
 

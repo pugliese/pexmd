@@ -24,8 +24,8 @@ F32_APB = lambda z: (4/(3*np.pi**0.5))*(np.log(z)**1.5)
 
 error_rel = lambda a,b: 2*np.abs((a-b)/(a+b))
 
-z1 = np.linspace(0, 0.65, 651)
-z2 = np.linspace(0.6501, 20, 2000)
+z1 = np.linspace(0, 0.7, 701)
+z2 = np.linspace(0.7001, 20, 2000)
 z3 = np.logspace(1.305, 5, 1000)
 
 F1 = [F32_S(z) for z in z1]
