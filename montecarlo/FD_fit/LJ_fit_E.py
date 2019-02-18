@@ -18,7 +18,7 @@ rcut = np.sqrt(10)
 pauli = [D, qo, po, np.sqrt(10)]
 h = h_bar*2*np.pi
 N = 10**3
-Nsamp = 1 #200
+Nsamp = 200
 
 tipo = "rep"
 rho = 'rho0'
@@ -112,8 +112,8 @@ if (tipo == 'f&v'):
 
   MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
 
-  #seleccion = [0, 2, 4, 6, 8, 10, 12, 14, 15]
-  seleccion = range(n_temps)
+  seleccion = [0, 2, 4, 6, 8, 10, 12, 14, 15]
+  #seleccion = range(n_temps)
   i = 0
   plt.figure()
   for k in seleccion:
@@ -122,14 +122,24 @@ if (tipo == 'f&v'):
     ns = data[1,:]
     if (n_temps > 1):
       plt.subplot(3, 3, i+1)
+      plt.subplots_adjust(left = 0.05, right = 0.98, bottom = 0.05, top = 0.98, wspace = 0.1, hspace = 0.125)
     plt.xlabel(r"$E$")
     plt.plot(E, ns, "ko")
-    plt.text((min(E)+ 5*max(E))/6, 0.9*max(ns), "T=%f" %(Ts[k]))
-    #plt.text(3, 700, "T=%f" %(Ts[k]))
     rango = np.linspace(0, E[-1], 1000)
     exacto_MB = MB(rango, Ts[k])
     plt.plot(rango, exacto_MB, "r-")
-    #plt.axis([0, 5, 0, 1000])
+    plt.axis([0, max(E), 0, 1.05*max(exacto_MB)])
+    plt.text((min(E)+ 4*max(E))/6, 0.4*max(exacto_MB), "T=%1.3fMeV" %(Ts[k]), fontsize=16)
+    if (i==7):
+      plt.xlabel(r"$E$ [$MeV$]", fontsize=18)
+    if (i==3):
+      plt.ylabel(r"$f(E)$ [$MeV^{-1}$]", fontsize=18)
+    if (i==4):
+      plt.legend(["Data", "Boltzmann"], fontsize=20)
+    if (i==1):
+      plt.text(0.3*max(E), 0.865*max(exacto_MB), r"$\rho^*$ = %1.2f"%(N/V), fontsize=26, bbox=dict(facecolor='grey', edgecolor='black', boxstyle='round,pad=1', alpha=0.4))
+    if (i==0):
+        plt.text(0.3*max(E), 0.865*max(exacto_MB), "Lennard Jones", fontsize=26, bbox=dict(facecolor='grey', edgecolor='black', boxstyle='round,pad=1', alpha=0.4))
     i += 1
 
   plt.show()

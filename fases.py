@@ -28,7 +28,7 @@ pauli = pexmd.interaction.Pauli(scut, DD, qo, po)
 #parts.v = np.array([[-4.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
 #parts.mass = m
 # Integrator
-h = 0.0001
+h = 0.001
 integ = pexmd.integrator.Euler(h)
 # Box
 # box = box.Box(-50*np.ones(3), 50*np.ones(3))
@@ -116,7 +116,7 @@ def trayectoria(qi, pi, pauli, integ, parts):
   parts.v = np.array([[pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   q = [parts.x[0, 0] - parts.x[1, 0]]
   p = [parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
-  while (abs(q[-1]) <= abs(qi) and abs(p[-1]) <= abs(pi)):
+  while (abs(q[-1]) <= abs(qi)):
     parts.f, e = pauli.forces(parts.x, parts.p)
     gorces, e = pauli.gorces(parts.x, parts.p)
     parts.x, parts.v = integ.step(parts.x, parts.v, gorces, parts.a)
@@ -126,6 +126,10 @@ def trayectoria(qi, pi, pauli, integ, parts):
   return q, p, reboto
 
 if (sys.argv[1] == "f"):
+  h = 0.001
+  integ = pexmd.integrator.Euler(h)
+  parts = pexmd.particles.PointParticles(2)
+  parts.mass = 1
   Nq = 49
   if (3<=len(sys.argv)):
     Nq = int(sys.argv[2])
@@ -157,11 +161,12 @@ if (sys.argv[1] == "f"):
     f.write(str(fasesp[i][-1])+"\n")
   f.close()
   for i in range(len(fasesq)):
-    plt.plot(fasesq[i], fasesp[i], "b-")
+    plt.plot(fasesq[i], fasesp[i], "b-", linewidth=0.6)
   plt.xlabel(r"$\Delta q$")
   plt.ylabel(r"$\Delta p$")
   plt.axis([-5,5,-6, 6])
-  plt.title("Espacio de fases")
+  plt.grid()
+  plt.title("Diagrama de fases - Euler")
   plt.show()
 
 
@@ -172,7 +177,7 @@ def trayectoria_rk(qi, pi, pauli, integ, parts):
   parts.v = np.array([[pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   q = [parts.x[0, 0] - parts.x[1, 0]]
   p = [parts.mass[0]*(parts.v[0, 0] - parts.v[1, 0])]
-  while (abs(q[-1])<=abs(qi) and abs(p[-1])<=6):
+  while (abs(q[-1])<=abs(qi)):
     parts.f, e = pauli.forces(parts.x, parts.p)
     gorces, e = pauli.gorces(parts.x, parts.p)
     x_temp, v_temp = integ.first_step(parts.x, parts.v, gorces, parts.a)
@@ -185,9 +190,11 @@ def trayectoria_rk(qi, pi, pauli, integ, parts):
   return q, p, reboto
 
 if (sys.argv[1] == "frk"):
-  h = 0.0001
+  h = 0.001
   integ = pexmd.integrator.RK2(h)
-  Nq = 25
+  parts = pexmd.particles.PointParticles(2)
+  parts.mass = 1
+  Nq = 49
   if (3<=len(sys.argv)):
     Nq = int(sys.argv[2])
   po = np.linspace(-6, 0, Nq)
@@ -218,11 +225,12 @@ if (sys.argv[1] == "frk"):
     f.write(str(fasesp[i][-1])+"\n")
   f.close()
   for i in range(len(fasesq)):
-    plt.plot(fasesq[i], fasesp[i], "b-")
+    plt.plot(fasesq[i], fasesp[i], "b-", linewidth=0.6)
   plt.xlabel(r"$\Delta q$")
   plt.ylabel(r"$\Delta p$")
   plt.axis([-5,5,-6, 6])
-  plt.title("Espacio de fases")
+  plt.grid()
+  plt.title("Diagrama de fases - RK2")
   plt.show()
 
 def FixedPoint(parts, interact, dt, Niter = 5):
@@ -251,8 +259,10 @@ def trayectoria_fp(qi, pi, pauli, dt, parts):
 
 if (sys.argv[1] == "fp"):
   h = 0.001
+  parts = pexmd.particles.PointParticles(2)
+  parts.mass = 1
   integ = pexmd.integrator.RK2(h)
-  Nq = 25
+  Nq = 49
   if (3<=len(sys.argv)):
     Nq = int(sys.argv[2])
   qinit = 5*qo
@@ -293,11 +303,12 @@ if (sys.argv[1] == "fp"):
     f.write(str(fasesp[i][-1])+"\n")
   f.close()
   for i in range(len(fasesq)):
-    plt.plot(fasesq[i], fasesp[i], "b-")
+    plt.plot(fasesq[i], fasesp[i], "b-", linewidth=0.6)
   plt.xlabel(r"$\Delta q$")
   plt.ylabel(r"$\Delta p$")
   plt.axis([-qinit, qinit, -pmax, pmax])
-  #plt.title("Espacio de fases")
+  plt.title("Diagrama de fases - MPR")
+  plt.grid()
   #plt.savefig("fases_{0}_{1}.png".format(po, qo))
   plt.show()
 

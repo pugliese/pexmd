@@ -6,6 +6,7 @@ import itertools as it
 import ctypes as ct
 import sys
 import glob
+plt.rcParams['axes.color_cycle'] = ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854","#ffd92f","#e5c494"]
 plt.ion()
 
 m = 1.043916 * 100
@@ -78,10 +79,10 @@ if(tipo == 't'):
     plt.plot([0.1525, 0.1525], [-50, -10], "k--")
     plt.plot([0.1625, 0.1625], [-50, -10], "k--")
     plt.text(0.01, -40, "ñoqui")
-    plt.text(0.045, -47, "spaghetti", rotation=90)
+    plt.text(0.045, -40, "spaghetti", rotation=90)
     plt.text(0.063, -20, "lasagna")
-    plt.text(0.115, -20, "tuneles", rotation=90)
-    plt.text(0.155, -20, "burbuja")
+    plt.text(0.115, -20, "tuneles")
+    plt.text(0.15375, -20, "burbujas", rotation=90)
   plt.xlabel(r"$\rho [fm^{-3}]$")
   plt.ylabel(r"$E [MeV]$")
   plt.show()
@@ -128,36 +129,63 @@ if (tipo == 'tt'):
   n_rhos = len(rhos)
   n_Ts = len(Ts)
   plt.figure()
+  colores = ["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854","#ffd92f","#e5c494"]
   for j in range(n_Ts):
-    plt.errorbar(rhos, Es[j,:], yerr=std_Es[j,:], fmt="o--")
-  plt.legend([r"$T = %1.1f MeV$" %(T) for T in Ts])
+    plt.plot(rhos, Es[j,:], colores[j%7], linewidth=2.5)
+    if (Ts[j]==3.4 or Ts[j]==3.5):
+      plt.text(0.001, Es[j,0]+5*(Ts[j]-3.45), "T=%1.1fMeV" %Ts[j], fontsize=9)
+    else:
+      plt.text(0.001, Es[j,0], "T=%1.1fMeV" %Ts[j], fontsize=9)
+  #plt.legend([r"$T = %1.1f MeV$" %(T) for T in Ts])
   if (caso=='layers/QCNMx0.5/Temperatura/'):
     curva_T = np.array([3.5 + (r>0.13)*100*(0.13-r) for r in rhos])
-    curva_T_idx_sup = [Ts.index(c) for c in (curva_T+0.5)]
-    curva_T_idx_inf = [Ts.index(c) for c in (curva_T-0.5)]
-    curva_E_sup = np.array([Es[j,curva_T_idx_sup[j]] for j in range(len(rhos))])
-    curva_E_inf = np.array([Es[j,curva_T_idx_inf[j]] for j in range(len(rhos))])
-    plt.fill_between(rhos, curva_E_sup, curva_E_inf, facecolor='grey')
-    plt.axis([0, 0.017, 1.1*np.min(Es), 1.1*np.max(Es)])
-    plt.plot([0.045, 0.045], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
-    plt.plot([0.065, 0.065], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
-    plt.plot([0.095, 0.095], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
-    plt.plot([0.125, 0.125], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
-    plt.plot([0.155, 0.155], [1.1*np.min(Es), 1.1*np.max(Es)], "k-")
-    plt.text(0.03, (np.min(Es)+np.max(Es))/2, "ñoqui")
-    plt.text(0.055, (np.min(Es)+np.max(Es))/2, "s\np\na\ng\nh\ne\nt\nt\ni")
-    plt.text(0.063, (np.min(Es)+np.max(Es))/2, "lasagna")
-    plt.text(0.105, (np.min(Es)+np.max(Es))/2, "tuneles")
-    plt.text(0.130, (np.min(Es)+np.max(Es))/2, "burbuja")
+    curva_T_idx_sup = [list(Ts).index(np.round(c)) for c in (curva_T+0.5)[:-1]]
+    curva_T_idx_inf = [list(Ts).index(np.round(c)) for c in (curva_T-0.5)[:-1]]
+    curva_E_sup = np.array([Es[curva_T_idx_sup[j],j] for j in range(len(rhos)-1)])
+    curva_E_inf = np.array([Es[curva_T_idx_inf[j],j] for j in range(len(rhos)-1)])
+    plt.fill_between(rhos[:-1], curva_E_sup, curva_E_inf, facecolor='grey', alpha = 0.3)
+    plt.axis([-0.00, 0.17, 1.1*np.min(Es), 1.2*np.max(Es)])
+    plt.plot([0.045, 0.045], [1.1*np.min(Es), 1.2*np.max(Es)], "k-")
+    plt.plot([0.065, 0.065], [1.1*np.min(Es), 1.2*np.max(Es)], "k-")
+    plt.plot([0.095, 0.095], [1.1*np.min(Es), 1.2*np.max(Es)], "k-")
+    plt.plot([0.125, 0.125], [1.1*np.min(Es), 1.2*np.max(Es)], "k-")
+    plt.plot([0.155, 0.155], [1.1*np.min(Es), 1.2*np.max(Es)], "k-")
+    plt.text(0.03, 1.05*np.max(Es), "Ñoqui")
+    plt.text(0.055, 1.1*np.max(Es), "Spaghetti", rotation=90)
+    plt.text(0.07, 1.05*np.max(Es), "Lasagna")
+    plt.text(0.10, 1.05*np.max(Es), "Túneles")
+    plt.text(0.130, 1.05*np.max(Es), "Burbuja")
   plt.xlabel(r"$\rho$ [$fm^{-3}$]")
   plt.ylabel(r"$E$ [$MeV$]")
   plt.figure()
-  seleccion_rhos = [0, 3, 6, 9, -1]
+  #seleccion_rhos = [0, 3, 6, 9, -1]
+  #seleccion_rhos = [6]
+  seleccion_rhos = range(n_rhos)
+  altura = [6.8, 6.2, 5.2, 4.4, 3.95, 3.3, 2.85, 2.35, 1.85, 1.1, 0.4, -0.2, -0.9, -1.4, -2.1]
   for k in seleccion_rhos:
-    plt.errorbar(Ts, Es[:,k], yerr=std_Es[:,k], fmt="o-")
-  plt.legend([r"$\rho = %1.2f fm^{-3}$" %(rhos[k]) for k in seleccion_rhos], loc=4)
+    """
+    if (k==3 or k==5 or k==8 or k==11):
+      plt.xlabel(r"$T$ [$MeV$]")
+      plt.ylabel(r"$E$ [$MeV$]")
+      plt.axis([0, 6, -12, 8])
+      plt.figure()
+    """
+    plt.plot(Ts, Es[:,k], "o-")
+    plt.text(5.1, altura[k], r"$\rho=%1.2ffm^{-3}$" %rhos[k], fontsize=9)
+  #plt.legend([r"$\rho = %1.2f fm^{-3}$" %(rhos[k]) for k in seleccion_rhos], loc=4, )
   plt.xlabel(r"$T$ [$MeV$]")
   plt.ylabel(r"$E$ [$MeV$]")
+  plt.axis([0, 6, -12, 8])
+  # Densidades individuales
+  seleccion_rhos = [list(rhos).index(r) for r in [0.02, 0.05, 0.08, 0.11]]
+  for k in seleccion_rhos:
+    plt.figure()
+    plt.plot(Ts, Es[:,k], "o-")
+    plt.xlabel(r"$T$ [$MeV$]")
+    plt.ylabel(r"$E$ [$MeV$]")
+    ancho = max(Es[:,k])-min(Es[:,k])
+    plt.axis([0, 5.5, min(Es[:,k])-ancho*0.05, max(Es[:,k])+ancho*0.05])
+    plt.legend([r"$\rho=%1.2ffm^{-3}$" %(rhos[k])], loc=4)
   plt.show()
 
 pressure = ct.CDLL('../pressure.so')
