@@ -203,6 +203,52 @@ def F_32(fug):
     m = (F32[inf+1]-F32[inf])/(z[inf+1]-z[inf])
     return F32[inf] + m*(fug-z[inf])
 
+
+if (tipo == "f&vg"):
+  MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
+  FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
+
+  if (rho[0]!="M"):
+    Ts_quiero = Ts[8:]
+    seleccion = [list(Ts).index(T) for T in Ts_quiero]
+  if (rho[0] == "M"):
+    seleccion = range(len(Ts))
+
+  mus = np.zeros(len(seleccion))
+  mus_aj = np.zeros(len(seleccion))
+  Ts_aj = np.zeros(len(seleccion))
+  i = 0
+  for k in seleccion:
+    plt.figure()
+    data = np.loadtxt(rho+"/histograma_%d_T=%f.txt" %(Nbins, Ts[k]))
+    E = data[0,:]
+    ns = data[1,:]
+    plt.plot(E,  ns/1000, "ko")
+    rango = np.linspace(0, E[-1], 10000)
+    exacto_MB = MB(rango, Ts[k])/1000
+    plt.plot(rango, exacto_MB, "r-")
+    print(dame_z(long_term(Ts[k])**3*N/V), long_term(Ts[k])**3*N/V)
+    mus[i] = np.log(dame_z(long_term(Ts[k])**3*N/V))*Ts[k]
+    exacto_FD = FD(rango, mus[i], Ts[k])/1000
+
+    params, coso = sc.curve_fit(FD, E, ns, [0, Ts[k]], bounds = ([-np.inf,0],[Ef,np.inf]))
+
+    plt.plot(rango, exacto_FD, "k--")
+    plt.plot(rango, FD(rango, params[0], params[1])/1000, "b-")
+    plt.xlabel(r"$E$", fontsize=20)
+    plt.ylabel(r"$f(E)$", fontsize=20)
+    plt.xticks([])
+    plt.yticks([])
+    plt.title(r"Parametros Dorso - $\rho^* = 3.375$", fontsize=20)
+    if (rho[0] == "M"):
+      plt.title(r"Parametros Maruyama - $\rho^* = 3.375$", fontsize=20)
+    plt.axis([0, max(E), 0, 1.05*max(exacto_MB)])
+    plt.legend(["Data", "Boltzmann", "Fermi", "Ajuste FD"], fontsize=20)
+    plt.text((min(E)+ 4*max(E))/6, 0.4*max(exacto_MB), "T=%1.2fMeV" %(Ts[k]), fontsize=16)
+    plt.savefig(rho+"/gif/histo_%d.png" %(len(seleccion)-i-1))
+    plt.close()
+    i+=1
+
 if (tipo == "f&v"):
   MB = lambda x, T: N*2*np.sqrt(x/np.pi)*np.exp(-x/T)/(T**1.5)
   FD = lambda x, mu, T: deg(x)/(np.exp((x-mu)/T)+1)
@@ -747,4 +793,49 @@ if (tipo[:2] == "gr"):
     if (rho[0]=="M"):
       plt.title(r"Parametros Maruyama - $T=%1.1f MeV$ - $\rho^*=%1.3f $"%(Ts[seleccion[i]], qo**3*N/V), fontsize=16)
     plt.axis([0, 0.5*L, 0, max(gr[i])])
+  plt.show()
+
+
+if (tipo == "evt"):
+  colores = ["s--", "v--", "o--"]
+  E = np.zeros((len(Ts),3))
+  plt.figure()
+  for j in range(3):
+    rhoj = rho[:-1]+str(j)
+    for i in range(len(Ts)):
+      data = np.loadtxt(rhoj+"/histograma_100_T=%1.6f.txt" %(Ts[i]))
+      E[i,j] = np.sum(data[1,:]*data[0,:])*(data[0,1]-data[0,0])
+    plt.plot(Ts, (2/3)*E[:,j]/1000, colores[j])
+  plt.plot(Ts, Ts, "r-")
+  plt.legend([r"$\rho^*=%1.3f$" %(r) for r in [3.375, 1, 0.125]], loc=4)
+  plt.title("Parametros "+(rho[0]=="M")*"Maruyama"+(1-(rho[0]=="M"))*"Dorso")
+  plt.grid()
+  plt.xlabel(r"$T$ [MeV]", fontsize=16)
+  plt.ylabel(r"$\frac{2}{3}\frac{E_{cin}}{N}$ [MeV]", fontsize=16)
+  plt.axis([0, max(Ts)*1.05, 0, max(Ts)*1.05])
+  plt.show()
+
+
+if (tipo == "evp"):
+  colores = ["s--", "v--", "o--"]
+  E = np.zeros((len(Ts),3))
+  P = np.zeros((len(Ts),3))
+  V = N*(np.array([1.0/3, 1.0/2, 1])*qo*2)**3
+  plt.figure()
+  for j in range(3):
+    rhoj = rho[:-1]+str(j)
+    data = np.loadtxt(rhoj+"/presiones_N=1000.txt")
+    P_aux = data[1,:]
+    P[:,j] = P_aux[[list(data[0,:]).index(T) for T in Ts]]
+    for i in range(len(Ts)):
+      data = np.loadtxt(rhoj+"/histograma_100_T=%1.6f.txt" %(Ts[i]))
+      E[i,j] = np.sum(data[1,:]*data[0,:])*(data[0,1]-data[0,0])
+    plt.semilogx(Ts, E[:,j]/(1.5*P[:,j]*V[j]), colores[j])
+  plt.plot(Ts, np.zeros_like(Ts)+1, "r-")
+  plt.legend([r"$\rho^*=%1.3f$" %(r) for r in [3.375, 1, 0.125]], loc=4)
+  plt.title("Parametros "+(rho[0]=="M")*"Maruyama"+(1-(rho[0]=="M"))*"Dorso")
+  plt.grid()
+  plt.xlabel(r"$T$ [MeV]", fontsize=16)
+  plt.ylabel(r"$\frac{2E_{cin}}{3PV}$", fontsize=20)
+  plt.axis([0, max(Ts)*1.05, 0.75, 1.05])
   plt.show()

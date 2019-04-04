@@ -136,7 +136,6 @@ if (tipo == 'tt'):
       plt.text(0.001, Es[j,0]+5*(Ts[j]-3.45), "T=%1.1fMeV" %Ts[j], fontsize=9)
     else:
       plt.text(0.001, Es[j,0], "T=%1.1fMeV" %Ts[j], fontsize=9)
-  #plt.legend([r"$T = %1.1f MeV$" %(T) for T in Ts])
   if (caso=='layers/QCNMx0.5/Temperatura/'):
     curva_T = np.array([3.5 + (r>0.13)*100*(0.13-r) for r in rhos])
     curva_T_idx_sup = [list(Ts).index(np.round(c)) for c in (curva_T+0.5)[:-1]]
@@ -158,21 +157,11 @@ if (tipo == 'tt'):
   plt.xlabel(r"$\rho$ [$fm^{-3}$]")
   plt.ylabel(r"$E$ [$MeV$]")
   plt.figure()
-  #seleccion_rhos = [0, 3, 6, 9, -1]
-  #seleccion_rhos = [6]
   seleccion_rhos = range(n_rhos)
   altura = [6.8, 6.2, 5.2, 4.4, 3.95, 3.3, 2.85, 2.35, 1.85, 1.1, 0.4, -0.2, -0.9, -1.4, -2.1]
   for k in seleccion_rhos:
-    """
-    if (k==3 or k==5 or k==8 or k==11):
-      plt.xlabel(r"$T$ [$MeV$]")
-      plt.ylabel(r"$E$ [$MeV$]")
-      plt.axis([0, 6, -12, 8])
-      plt.figure()
-    """
-    plt.plot(Ts, Es[:,k], "o-")
+    plt.plot(Ts, Es[:,k], "-")
     plt.text(5.1, altura[k], r"$\rho=%1.2ffm^{-3}$" %rhos[k], fontsize=9)
-  #plt.legend([r"$\rho = %1.2f fm^{-3}$" %(rhos[k]) for k in seleccion_rhos], loc=4, )
   plt.xlabel(r"$T$ [$MeV$]")
   plt.ylabel(r"$E$ [$MeV$]")
   plt.axis([0, 6, -12, 8])
@@ -184,7 +173,9 @@ if (tipo == 'tt'):
     plt.xlabel(r"$T$ [$MeV$]")
     plt.ylabel(r"$E$ [$MeV$]")
     ancho = max(Es[:,k])-min(Es[:,k])
-    plt.axis([0, 5.5, min(Es[:,k])-ancho*0.05, max(Es[:,k])+ancho*0.05])
+    plt.axis([0, 5.5, -12, 8])
+    plt.xticks([i*0.5 for i in range(11)])
+    plt.yticks(range(-12,9,2))
     plt.legend([r"$\rho=%1.2ffm^{-3}$" %(rhos[k])], loc=4)
   plt.show()
 

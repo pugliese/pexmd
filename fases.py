@@ -147,6 +147,7 @@ if (sys.argv[1] == "f"):
     q, p, r = trayectoria(-5, pi, pauli, integ, parts)
     fasesq.append(q)
     fasesp.append(p)
+
   if (len(sys.argv)==4):
     filename = sys.argv[3]
   else:
@@ -165,7 +166,9 @@ if (sys.argv[1] == "f"):
   plt.xlabel(r"$\Delta q$")
   plt.ylabel(r"$\Delta p$")
   plt.axis([-5,5,-6, 6])
-  plt.grid()
+  plt.plot([-5,5], [0,0], "k")
+  plt.plot([0,0], [-6,6], "k")
+  #plt.grid()
   plt.title("Diagrama de fases - Euler")
   plt.show()
 
@@ -202,6 +205,7 @@ if (sys.argv[1] == "frk"):
   fasesp = []
   energia = []
   for pi in po:
+    print(pi)
     q, p, r = trayectoria_rk(5, pi, pauli, integ, parts)
     fasesq.append(q)
     fasesp.append(p)
@@ -211,6 +215,7 @@ if (sys.argv[1] == "frk"):
     q, p, r = trayectoria_rk(-5, pi, pauli, integ, parts)
     fasesq.append(q)
     fasesp.append(p)
+
   if (len(sys.argv)==4):
     filename = sys.argv[3]
   else:
@@ -229,7 +234,9 @@ if (sys.argv[1] == "frk"):
   plt.xlabel(r"$\Delta q$")
   plt.ylabel(r"$\Delta p$")
   plt.axis([-5,5,-6, 6])
-  plt.grid()
+  plt.plot([-5,5], [0,0], "k")
+  plt.plot([0,0], [-6,6], "k")
+  #plt.grid()
   plt.title("Diagrama de fases - RK2")
   plt.show()
 
@@ -282,6 +289,7 @@ if (sys.argv[1] == "fp"):
     print(pi, ":", t)
   pinits = np.linspace(pmin, pmax, Nq)
   pinits = np.array(pinits, dtype = np.float32)
+  t = time.time()-t
   for pi in pinits:
     t = time.time()
     q, p, r = trayectoria_fp(-qinit, pi, pauli, h, parts)
@@ -289,6 +297,15 @@ if (sys.argv[1] == "fp"):
     fasesp.append(p)
     t = time.time()-t
     print(pi, ":", t)
+  # Impulso critico - Perimetro de la region excluida
+  pc = np.sqrt(2*(1+np.log(20000)))*0.99999
+  q, p, r = trayectoria_fp(qinit, -pc, pauli, h, parts)
+  fasesq.append(q)
+  fasesp.append(p)
+  q, p, r = trayectoria_fp(-qinit, pc, pauli, h, parts)
+  fasesq.append(q)
+  fasesp.append(p)
+
   if (len(sys.argv)==4):
     filename = sys.argv[3]
   else:
@@ -308,7 +325,9 @@ if (sys.argv[1] == "fp"):
   plt.ylabel(r"$\Delta p$")
   plt.axis([-qinit, qinit, -pmax, pmax])
   plt.title("Diagrama de fases - MPR")
-  plt.grid()
+  plt.plot([-5,5], [0,0], "k")
+  plt.plot([0,0], [-6,6], "k")
+  #plt.grid()
   #plt.savefig("fases_{0}_{1}.png".format(po, qo))
   plt.show()
 
@@ -522,21 +541,21 @@ def curva_teo(E, D):
     j+=1
   plt.figure()
   if (i==N):
-    plt.plot(ps, np.sqrt(q2), "b-")
-    plt.plot(ps, -np.sqrt(q2), "r-")
+    plt.plot(np.sqrt(q2), ps, "b-")
+    plt.plot(-np.sqrt(q2), ps, "r-")
   else:
-    plt.plot(ps[:i], np.sqrt(q2[:i]), "b-")
-    plt.plot(ps[:i], -np.sqrt(q2[:i]), "r-")
-    plt.plot(ps[j:], np.sqrt(q2[j:]), "b-")
-    plt.plot(ps[j:], -np.sqrt(q2[j:]), "r-")
-    plt.plot(ps[i:j], -np.sqrt(-q2[i:j]), "b--")
-    plt.plot(ps[i:j], np.sqrt(-q2[i:j]), "r--")
-  plt.plot([-1.1*p_inf, 1.1*p_inf], [0, 0], "k-")
-  plt.axis([-1.1*p_inf, 1.1*p_inf, -np.sqrt(q2[1]), np.sqrt(q2[1])])
-  plt.plot([p_inf, p_inf], [-np.sqrt(q2[1]), np.sqrt(q2[1])], "k-")
-  plt.plot([-p_inf, -p_inf], [-np.sqrt(q2[1]), np.sqrt(q2[1])], "k--")
-  plt.xlabel(r"$p^*$")
-  plt.ylabel(r"$q^*$")
+    plt.plot(np.sqrt(q2[:i]), ps[:i], "b-")
+    plt.plot(-np.sqrt(q2[:i]), ps[:i], "r-")
+    plt.plot(np.sqrt(q2[j:]), ps[j:], "b-")
+    plt.plot(-np.sqrt(q2[j:]), ps[j:], "r-")
+    plt.plot(-np.sqrt(-q2[i:j]), ps[i:j], "b--", linewidth=0.5)
+    plt.plot(np.sqrt(-q2[i:j]), ps[i:j], "r--", linewidth=0.5)
+  plt.plot([0, 0], [-1.1*p_inf, 1.1*p_inf], "k-")
+  plt.axis([-np.sqrt(q2[1]), np.sqrt(q2[1]), -1.1*p_inf, 1.1*p_inf])
+  plt.plot([-np.sqrt(q2[1]), np.sqrt(q2[1])], [p_inf, p_inf], "k--")
+  plt.plot([-np.sqrt(q2[1]), np.sqrt(q2[1])], [-p_inf, -p_inf], "k--")
+  plt.xlabel(r"$q^*$")
+  plt.ylabel(r"$p^*$")
   plt.title(r"$D^*=%1.2f$   $E^*=%1.2f$" %(D,E))
   plt.show()
 
@@ -645,9 +664,9 @@ def data_vmd(filename="coso.lammpstrj", pi=2, Nsamp=500, Nskip = 5):
     f.write("1 {0} 0 0 {1} 0 0 \n".format(parts.x[1][0], parts.v[1][0]))
   f.close()
 
-def make_movie(name, pi, Nstep=200, Nskip = 10):
+def make_movie(name, pi, D=10000, Nstep=100, Nskip = 20):
   parts = pexmd.particles.PointParticles(2)
-  pauli = pexmd.interaction.Pauli(200, 10000, 1, 1)
+  pauli = pexmd.interaction.Pauli(200, D, 1, 1)
   parts.x = np.array([[5, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   parts.v = np.array([[-pi, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
   parts.mass = 1
@@ -656,8 +675,8 @@ def make_movie(name, pi, Nstep=200, Nskip = 10):
     print(i)
     parts.x, parts.v = avanzarN_fp(parts, pauli, h, Nskip)
     plt.figure()
-    plt.plot([parts.x[0,0]], [0], "ro")
-    plt.plot([parts.x[1,0]], [0], "bo")
+    plt.plot([parts.x[0,0]], [0], "ro", markersize=20)
+    plt.plot([parts.x[1,0]], [0], "bo", markersize=20)
     plt.axis([-5, 5, -1, 1])
     plt.axis('off')
     if (i<10):
