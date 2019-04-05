@@ -845,3 +845,71 @@ def bolas(qs, ps):
     dists[i:n] = (qs[i] - qs[i+1:])**2 + (ps[i] - ps[i+1:])**2
     rs[i] = 0.5*np.sqrt(min(dists))
   return rs
+
+
+def volumen_dif(x1, p1, x2, p2):
+  return np.sum(p1*x2 - x1*p2)
+
+
+if (sys.argv[1] == "v1"):
+  scut = 200
+  DD = 10000
+  pauli = pexmd.interaction.Pauli(scut, DD, 1, 1)
+
+  hs = [1E-3,1E-4]
+  T = 2.5
+  Niter = 5
+  plt.figure()
+  for h in hs:
+      parts = pexmd.particles.PointParticles(2)
+      parts.x = np.array([[6.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      parts.v = np.array([[-5.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      parts.mass = 1
+      x_dt, v_dt = FixedPoint(parts, pauli, h, Niter)
+
+      M = int(T/h)
+      vol = np.zeros(M)
+      vol[0] = volumen_dif(parts.x, parts.v, x_dt, v_dt)
+      for i in range(1,M):
+        parts.x, parts.v = copiar(x_dt, v_dt)
+        x_dt, v_dt = FixedPoint(parts, pauli, h, Niter)
+        vol[i] = volumen_dif(parts.x, parts.v, x_dt, v_dt)
+      plt.plot(np.linspace(0, T, M), vol/vol[0])
+  plt.show()
+
+if (sys.argv[1] == "v2"):
+  scut = 200
+  DD = 10000
+  pauli = pexmd.interaction.Pauli(scut, DD, 1, 1)
+
+  hs = 1E-3
+  T = 2.5
+  M = int(T/h)
+  Niter = 5
+  qs = 6 + np.linspace(-0.0, 0.1, 2)
+  ps = -4 + np.linspace(-0.0, 0.1, 2)
+  inits = []
+  for q in qs:
+    for p in ps:
+      inits.append([q,p])
+  q = np.zeros((M, len(inits)))
+  p = np.zeros((M, len(inits)))
+  vol = np.zeros(M)
+  j = 0
+  for init in inits:
+      parts = pexmd.particles.PointParticles(2)
+      parts.x = np.array([[init[0], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      parts.v = np.array([[init[1], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      parts.mass = 1
+      q[0,j] = parts.x[0,0]-parts.x[1,0]
+      p[0,j] = parts.v[0,0]-parts.v[1,0]
+      for i in range(1,M):
+        parts.x, parts.v = FixedPoint(parts, pauli, h, Niter)
+        q[i,j] = parts.x[0,0]-parts.x[1,0]
+        p[i,j] = parts.v[0,0]-parts.v[1,0]
+      j+=1
+  for i in range(M):
+      vol[i] = abs(sum([p[i,(j+1)%4]*q[i,j] - p[i,j]*q[i,(j+1)%4] for j in range(4)]))
+  plt.figure()
+  plt.plot(vol)
+  plt.show()
