@@ -886,20 +886,31 @@ if (sys.argv[1] == "v2"):
   T = 2.5
   M = int(T/h)
   Niter = 5
-  qs = 6 + np.linspace(-0.0, 0.1, 2)
-  ps = -4 + np.linspace(-0.0, 0.1, 2)
+  nqs = 5
+  nps = nqs
+  qs = 6 + np.linspace(-0.02, 0.02, nqs)
+  ps = -4 + np.linspace(-0.02, 0.02, nps)
   inits = []
+  perim = 2*(nqs+nps-2)
+  inits = np.zeros((perim,2))
+  for i in range(nqs):
+    inits[i,:] = np.array([qs[i], ps[0]])
+    inits[nqs+nps-2-i,:] = np.array([qs[i], ps[-1]])
+  for i in range(nps-1):
+    inits[nqs+i,:] = np.array([qs[-1], ps[i]])
+    inits[-i,:] = np.array([qs[0], ps[i]])
+  """
   for q in qs:
     for p in ps:
       inits.append([q,p])
+  """
   q = np.zeros((M, len(inits)))
   p = np.zeros((M, len(inits)))
   vol = np.zeros(M)
-  j = 0
-  for init in inits:
+  for j in range(perim):
       parts = pexmd.particles.PointParticles(2)
-      parts.x = np.array([[init[0], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
-      parts.v = np.array([[init[1], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      parts.x = np.array([[inits[j,0], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
+      parts.v = np.array([[inits[j,1], 0.0, 0.0], [0.0, 0.0, 0.0]], dtype = np.float32)
       parts.mass = 1
       q[0,j] = parts.x[0,0]-parts.x[1,0]
       p[0,j] = parts.v[0,0]-parts.v[1,0]
@@ -907,9 +918,8 @@ if (sys.argv[1] == "v2"):
         parts.x, parts.v = FixedPoint(parts, pauli, h, Niter)
         q[i,j] = parts.x[0,0]-parts.x[1,0]
         p[i,j] = parts.v[0,0]-parts.v[1,0]
-      j+=1
   for i in range(M):
-      vol[i] = abs(sum([p[i,(j+1)%4]*q[i,j] - p[i,j]*q[i,(j+1)%4] for j in range(4)]))
+      vol[i] = sum([p[i,(j+1)%perim]*q[i,j] - p[i,j]*q[i,(j+1)%perim] for j in range(perim)])
   plt.figure()
   plt.plot(vol)
   plt.show()
