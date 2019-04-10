@@ -116,7 +116,7 @@ float delta_energia_pot(struct Particles *parts, struct LJ *lj, float L, float *
 // ------------------------------- MUESTREO --------------------------------- //
 
 float set_box(struct Particles *parts, float L){
-  int n_lado = pow(parts->n, 1.0/3.0);
+  int n_lado = ceil(pow(parts->n, 1.0/3.0));
   float dL = L/n_lado;
   for(int x = 0; x < n_lado; x++){
     for(int y = 0; y < n_lado; y++){
@@ -206,6 +206,30 @@ int muestrear_impulsos(char *filename, struct Particles *parts, struct LJ *lj, s
   return aceptados;
 }
 
+int muestrear_termo(char *filename, struct Particles *parts, struct LJ *lj, struct Externos *params, int Nsamp, int factor, int factor_term){
+  // Termalizacion
+  int segs = time(NULL);
+  printf("%s\n", filename);
+  int aceptados = 0;
+  for(int l = 0; l < factor_term*parts->n; l++){
+    aceptados += step(parts, lj, params);
+  }
+  // Muestreo
+  float ekin = 0;
+  float etot = 0;
+  FILE *f = fopen(filename, "a");
+  for(int k = 0; k < factor*parts->n; k++){
+    step(parts, lj, params);
+    ekin += parts->kinetic/parts->n;
+    etot += parts->energy/parts->n;
+  }
+  ekin = ekin/(factor*parts->n);
+  etot = etot/(factor*parts->n);
+  fprintf(f, "0 %f %f %f %f 0 %d\n", params->T, ekin, etot-ekin, etot, time(NULL)-segs);
+  fclose(f);
+  return aceptados;
+}
+
 int save_checkpoint(char *filename, struct Particles *parts, struct LJ *lj, struct Externos *params){
   FILE *f = fopen(filename, "w");
   fprintf(f, "%d %f %f %f\n", parts->n, parts->mass, parts->energy, parts->kinetic);
@@ -254,8 +278,9 @@ int main(){
 
 // Particulas
   struct Particles parts;
-  int N = 10;
-  parts.n = N*N*N;
+  //int N = 10;
+  //parts.n = N*N*N;
+  parts.n = 10000;
   parts.mass = 1; // Masa protón, MeV*(10^-22 s/fm)^2
   parts.q = (float *) malloc(3*parts.n*sizeof(float));
   parts.p = (float *) malloc(3*parts.n*sizeof(float));
@@ -266,13 +291,14 @@ int main(){
 
 // Potencial
   struct LJ lj;
-  lj.rcut2 = 10; // Un ~0.7% del máximo
+  //lj.rcut2 = 10; // Un ~0.7% del máximo
+  lj.rcut2 = 6.25; // Un ~1.6% del máximo
   float rcut6 = lj.rcut2*lj.rcut2*lj.rcut2;
   lj.shift = 4*(1.0/rcut6 - 1.0)/rcut6;
 
 // Parametros
   struct Externos params;
-  params.L = 0.7*N; // fm ; mayor a 2*qo*rcut
+  params.L = pow(parts.n/0.4, 1.0/3.0); // fm ; mayor a 2*qo*rcut
   params.T = 2; // MeV
   params.delta_q = 0.001; // fm
   params.delta_p = 0.001; // MeV*10^-22 s/fm
@@ -282,35 +308,45 @@ int main(){
   // Distribucion de muchos T; muchas realizaciones
   clock_t start, end;
   double time;
-  int factor = 2;
-  int factor_term = 5000;
-  int Nsamp = 200;
-  int Nrep = 10;
+  //int factor = 2;
+  //int factor_term = 1000;
+  //int Nsamp = 200;
+  //int Nrep = 10;
+  int factor = 1;
+  int factor_term = 1000;
+  int Nsamp = 1;
+  int Nrep = 1;
 
-  float Ts[4] = {0.01, 0.1, 1, 10};
+  float dT = 0.01;
 
   for (int j = 0; j < Nrep; j++) {
     srand(j);
-    printf("Realizacion %d/%d\n", j+1, Nrep);
-    //params.T = Ts[0];
-    //params.T = 0.001;
-    printf("Tramo lineal\n");
-    for (int k = 0; k < 4; k++) {
+    //printf("Realizacion %d/%d\n", j+1, Nrep);
+    //printf("Tramo lineal\n");
+    set_box(&parts, params.L);
+    set_p(&parts, params.T);
+    energia(&parts, &lj, params.L);
+    printf("Termalizacion\n");
+    N_steps(&parts, &lj, &params, factor_term*parts.n);
+    sprintf(filename, "LJ_fit/prueba/termo2.txt");
+    FILE *f = fopen(filename, "w");
+    fclose(f);
+    for (int k = 0; k < 51; k++) {
       start = clock();
-      params.T = Ts[k];
-      set_box(&parts, params.L);
-      set_p(&parts, params.T);
-      energia(&parts, &lj, params.L);
-      params.delta_q = 0.001*sqrt(Ts[k]/Ts[0]);
-      params.delta_p = 0.001*sqrt(Ts[k]/Ts[0]);
-      sprintf(filename, "LJ_fit/rho2/distribucion_10_rep%d_%f.txt", j+1, params.T);
-      int aceptados = muestrear_impulsos(filename, &parts, &lj, &params, Nsamp, factor, factor_term);
+      //params.delta_q = 0.001*sqrt(Ts[k]/Ts[0]);
+      //params.delta_p = 0.001*sqrt(Ts[k]/Ts[0]);
+      params.delta_q = 0.3;
+      params.delta_p = 0.3*sqrt(params.T/2);
+      int aceptados = muestrear_termo(filename, &parts, &lj, &params, Nsamp, factor, factor_term);
       end = clock();
       time = ((double) (end - start)) / CLOCKS_PER_SEC;
-      printf("T = %f en %f segundos con %d aceptados (%f)\n", params.T, time, aceptados, ((float) aceptados)/(Nsamp*factor*parts.n));
+      printf("T = %f en %f segundos con %d aceptados (%2.2f%)\n", params.T, time, aceptados, 100*((float) aceptados)/(factor_term*parts.n));
+      params.T -= dT;
     }
   }
   free(parts.q);
   free(parts.p);
   return 0;
 }
+natalie_cluster 10.99.30.160
+natalie_pablo 10.99.30.168
