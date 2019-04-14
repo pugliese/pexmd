@@ -117,11 +117,15 @@ float delta_energia_pot(struct Particles *parts, struct LJ *lj, float L, float *
 
 float set_box(struct Particles *parts, float L){
   int n_lado = ceil(pow(parts->n, 1.0/3.0));
+  int i;
   float dL = L/n_lado;
   for(int x = 0; x < n_lado; x++){
     for(int y = 0; y < n_lado; y++){
       for(int z = 0; z < n_lado; z++){
-        int i = x*n_lado*n_lado + y*n_lado + z;
+        i = x*n_lado*n_lado + y*n_lado + z;
+        if (i>=parts->n){
+          return dL;
+        }
         parts->q[3*i] = dL*(0.5 + x);
         parts->q[3*i+1] = dL*(0.5 + y);
         parts->q[3*i+2] = dL*(0.5 + z);
@@ -218,13 +222,13 @@ int muestrear_termo(char *filename, struct Particles *parts, struct LJ *lj, stru
   float ekin = 0;
   float etot = 0;
   FILE *f = fopen(filename, "a");
-  for(int k = 0; k < factor*parts->n; k++){
+  for(int k = 0; k < factor*parts->n+1; k++){
     step(parts, lj, params);
     ekin += parts->kinetic/parts->n;
     etot += parts->energy/parts->n;
   }
-  ekin = ekin/(factor*parts->n);
-  etot = etot/(factor*parts->n);
+  ekin = ekin/(factor*parts->n+1);
+  etot = etot/(factor*parts->n+1);
   fprintf(f, "0 %f %f %f %f 0 %d\n", params->T, ekin, etot-ekin, etot, time(NULL)-segs);
   fclose(f);
   return aceptados;
@@ -269,24 +273,72 @@ int load_checkpoint(char *filename, struct Particles *parts, struct LJ *lj, stru
   return 0;
 }
 
+int save_config_lammps(char *filename, struct Particles *parts, struct Externos *params, int step){
+  FILE *f;
+  if (step == 0){
+    f = fopen(filename, "w");
+  }else{
+    f = fopen(filename, "a");
+  }
+  fprintf(f, "ITEM: TIMESTEP\n%d\nITEM: NUMBER OF ATOMS\n%d\nITEM: BOX BOUNDS pp pp pp\n", step, parts->n);
+  for(int k = 0; k < 3; k++){
+    fprintf(f, "0 %f\n", params->L);
+  }
+  fprintf(f, "ITEM: ATOMS id type x y z vx vy vz \n");
+  for(int k = 0; k < parts->n; k++){
+    fprintf(f, "%d 1 %f %f %f %f %f %f\n", k, parts->q[3*k], parts->q[3*k+1], parts->q[3*k+2], parts->p[3*k], parts->p[3*k+1], parts->p[3*k+2]);
+  }
+  fclose(f);
+  return 0;
+}
+
+int load_checkpoint_lammps(char *filename, struct Particles *parts, struct Externos *params){
+  FILE *f = fopen(filename, "r");
+  int i;
+  for(int k = 0; k < 3; k++){
+    i = fscanf(f, "%*[^\n]\n", NULL);
+  }
+  int N;
+  i = fscanf(f, "%d\n", &N);
+  if (N!=parts->n){
+    printf("Error en cantidad de particulas\nEn archivo: %d (%s)\nEsperadas: %d\n", N, filename, parts->n);
+    return 0;
+  }
+  i = fscanf(f, "%*[^\n]\n", NULL);
+  i = fscanf(f, "%* %f\n", &params->L);
+  for(int k = 0; k < 3; k++){
+    i = fscanf(f, "%*[^\n]\n", NULL);
+  }
+  for(int k = 0; k < parts->n; k++){
+    i = fscanf(f, "%d %d %f %f %f %f %f %f\n", NULL, NULL, &(parts->q[3*k]), &(parts->q[3*k+1]), &(parts->q[3*k+2]),
+                                                                &(parts->p[3*k]), &(parts->p[3*k+1]), &(parts->p[3*k+2]));
+  }
+  fclose(f);
+  return 1;
+}
+
 
 
 // --------------------------------- MAIN ----------------------------------- //
 
 
-int main(){
+int main(int argc, char *argv[]){
 
 // Particulas
   struct Particles parts;
   //int N = 10;
   //parts.n = N*N*N;
-  parts.n = 10000;
+  parts.n = 4000;
   parts.mass = 1; // Masa protón, MeV*(10^-22 s/fm)^2
   parts.q = (float *) malloc(3*parts.n*sizeof(float));
   parts.p = (float *) malloc(3*parts.n*sizeof(float));
   for(int j = 0; j < 3*parts.n; j++){
     parts.q[j] = 0;
     parts.p[j] = 0;
+  }
+  float rho = 0.4;
+  if (argc >= 2){
+    int i = sscanf(argv[1], "%f\n", &rho);
   }
 
 // Potencial
@@ -298,7 +350,7 @@ int main(){
 
 // Parametros
   struct Externos params;
-  params.L = pow(parts.n/0.4, 1.0/3.0); // fm ; mayor a 2*qo*rcut
+  params.L = pow(parts.n/rho, 1.0/3.0); // fm ; mayor a 2*qo*rcut
   params.T = 2; // MeV
   params.delta_q = 0.001; // fm
   params.delta_p = 0.001; // MeV*10^-22 s/fm
@@ -312,11 +364,11 @@ int main(){
   //int factor_term = 1000;
   //int Nsamp = 200;
   //int Nrep = 10;
+/*
   int factor = 1;
   int factor_term = 1000;
   int Nsamp = 1;
   int Nrep = 1;
-
   float dT = 0.01;
 
   for (int j = 0; j < Nrep; j++) {
@@ -337,16 +389,43 @@ int main(){
       //params.delta_p = 0.001*sqrt(Ts[k]/Ts[0]);
       params.delta_q = 0.3;
       params.delta_p = 0.3*sqrt(params.T/2);
-      int aceptados = muestrear_termo(filename, &parts, &lj, &params, Nsamp, factor, factor_term);
+      int aceptados = muestrear_impulsos(filename, &parts, &lj, &params, Nsamp, factor, factor_term);
       end = clock();
       time = ((double) (end - start)) / CLOCKS_PER_SEC;
       printf("T = %f en %f segundos con %d aceptados (%2.2f%)\n", params.T, time, aceptados, 100*((float) aceptados)/(factor_term*parts.n));
       params.T -= dT;
     }
   }
+*/
+  params.T = 1.5;
+  float dT = 0.01;
+  int factor_term = 1000;
+  char filename_termo[255];
+
+  set_box(&parts, params.L);
+  set_p(&parts, params.T);
+  energia(&parts, &lj, params.L);
+  printf("Termalizacion\n");
+  params.delta_q = 0.3;
+  params.delta_p = 0.3*sqrt(params.T/2);
+  N_steps(&parts, &lj, &params, factor_term*parts.n);
+  sprintf(filename, "data/configuracion_lennard_%1.2f.lammpstrj", rho);
+  sprintf(filename_termo, "data/termo_lennard_%1.2f.lammpstrj", rho);
+  FILE *f = fopen(filename_termo, "w");
+  fclose(f);
+  for (int k = 0; k < 101; k++) {
+    start = clock();
+    params.delta_q = 0.4*(params.T/1.5);
+    params.delta_p = 0.4*(params.T/1.5);
+    int aceptados = N_steps(&parts, &lj, &params, factor_term*parts.n);
+    muestrear_termo(filename_termo, &parts, &lj, &params, 1, 0, 0);
+    save_config_lammps(filename, &parts, &params, k);
+    end = clock();
+    time = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("rho = %1.2f, T = %1.2f en %.3f segundos con %2.2f%% de aceptados \n", rho, params.T, time, 100*((float) aceptados)/(factor_term*parts.n));
+    params.T -= dT;
+  }
   free(parts.q);
   free(parts.p);
   return 0;
 }
-natalie_cluster 10.99.30.160
-natalie_pablo 10.99.30.168
