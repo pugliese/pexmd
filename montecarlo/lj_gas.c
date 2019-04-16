@@ -229,7 +229,8 @@ int muestrear_termo(char *filename, struct Particles *parts, struct LJ *lj, stru
   }
   ekin = ekin/(factor*parts->n+1);
   etot = etot/(factor*parts->n+1);
-  fprintf(f, "0 %f %f %f %f 0 %d\n", params->T, ekin, etot-ekin, etot, time(NULL)-segs);
+  segs = time(NULL)-segs;
+  fprintf(f, "0 %f %f %f %f 0 %d\n", params->T, ekin, etot-ekin, etot, segs);
   fclose(f);
   return aceptados;
 }
@@ -296,7 +297,7 @@ int load_checkpoint_lammps(char *filename, struct Particles *parts, struct Exter
   FILE *f = fopen(filename, "r");
   int i;
   for(int k = 0; k < 3; k++){
-    i = fscanf(f, "%*[^\n]\n", NULL);
+    i = fscanf(f, "%*[^\n]\n");
   }
   int N;
   i = fscanf(f, "%d\n", &N);
@@ -304,13 +305,13 @@ int load_checkpoint_lammps(char *filename, struct Particles *parts, struct Exter
     printf("Error en cantidad de particulas\nEn archivo: %d (%s)\nEsperadas: %d\n", N, filename, parts->n);
     return 0;
   }
-  i = fscanf(f, "%*[^\n]\n", NULL);
-  i = fscanf(f, "%* %f\n", &params->L);
+  i = fscanf(f, "%*[^\n]\n");
+  i = fscanf(f, "0 %f\n", &params->L);
   for(int k = 0; k < 3; k++){
-    i = fscanf(f, "%*[^\n]\n", NULL);
+    i = fscanf(f, "%*[^\n]\n");
   }
   for(int k = 0; k < parts->n; k++){
-    i = fscanf(f, "%d %d %f %f %f %f %f %f\n", NULL, NULL, &(parts->q[3*k]), &(parts->q[3*k+1]), &(parts->q[3*k+2]),
+    i = fscanf(f, "%d %d %f %f %f %f %f %f\n", &i, &i, &(parts->q[3*k]), &(parts->q[3*k+1]), &(parts->q[3*k+2]),
                                                                 &(parts->p[3*k]), &(parts->p[3*k+1]), &(parts->p[3*k+2]));
   }
   fclose(f);
@@ -406,8 +407,8 @@ int main(int argc, char *argv[]){
   set_p(&parts, params.T);
   energia(&parts, &lj, params.L);
   printf("Termalizacion\n");
-  params.delta_q = 0.3;
-  params.delta_p = 0.3*sqrt(params.T/2);
+  params.delta_q = 0.4*(params.T/1.5)*pow(0.4/rho, 1.25);
+  params.delta_p = 0.4*(params.T/1.5);
   N_steps(&parts, &lj, &params, factor_term*parts.n);
   sprintf(filename, "data/configuracion_lennard_%1.2f.lammpstrj", rho);
   sprintf(filename_termo, "data/termo_lennard_%1.2f.lammpstrj", rho);
@@ -415,7 +416,7 @@ int main(int argc, char *argv[]){
   fclose(f);
   for (int k = 0; k < 101; k++) {
     start = clock();
-    params.delta_q = 0.4*(params.T/1.5);
+    params.delta_q = 0.4*(params.T/1.5)*pow(0.4/rho, 1.25);
     params.delta_p = 0.4*(params.T/1.5);
     int aceptados = N_steps(&parts, &lj, &params, factor_term*parts.n);
     muestrear_termo(filename_termo, &parts, &lj, &params, 1, 0, 0);
