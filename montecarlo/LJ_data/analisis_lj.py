@@ -41,14 +41,22 @@ if (tipo == "t"):
   Epot = np.zeros((n_rhos, n_temps))
   Etot = np.zeros((n_rhos, n_temps))
   i = 0
-  plt.figure()
   for f in files:
     data = np.loadtxt(f)
     Ecin[i,:] = data[:,2]
     Epot[i,:] = data[:,3]
     Etot[i,:] = data[:,4]
-    plt.plot(Ts, Etot[i,:])
     i+=1
+  T_selection = [0, 25, 50, 75, 100]
+  plt.figure()
+  for idx in T_selection:
+    plt.plot(rhos[2:], Etot[2:,idx], "o--")
+  plt.legend([r"T=%1.2f$\varepsilon$" %(Ts[i]) for i in T_selection], loc = "upper center")
+  plt.axis([0, 1.4, -6, 4])
+  plt.xlabel(r"$\rho\sigma^3$")
+  plt.ylabel(r"$E/\varepsilon$")
+  plt.plot([0.725, 0.725], [-6, 4], "k-")
+  plt.text(0.1, -3.55, "Regimen de pastas", fontsize=18)
   plt.show()
 
 
@@ -86,18 +94,24 @@ if (tipo == "gr"):
           p[3*i+k] = float(data[5+k])
     return q, p
 
-  dr = 0.025
   T_idx = len(Ts)-1
 
-  for rho in [0.9]:
+  for rho in [0.9, 1.0, 1.1, 1.2, 1.3]:
     q, p = cargar_lammpstrj("configuracion_lennard_%1.2f" %rho + ".lammpstrj", T_idx)
     L = (len(q)/(3*rho))**(1./3)
+    dr = L/400
     print(len(q), len(q)//3, L)
 
     gr = Gr(q, dr, L)
     plt.figure()
-    plt.plot(dr*np.arange(len(gr)), gr, "b-")
+    plt.plot(dr*(np.arange(len(gr))+0.5), gr, "b-")
     plt.plot([0, 0.5*L], [1, 1], "r-")
+    l = dr*(np.where(gr==max(gr))[0][0] + 0.5)
+    for i in range(4):
+      for j in range(4):
+        for k in range(4):
+          ll = l*np.sqrt(i**2+j**2+k**2)
+          plt.plot([ll, ll], [0, max(gr)], "k--")
     plt.xlabel(r"$r$")
     plt.ylabel(r"$g(r)$")
     plt.title(r"$T=%1.4f\epsilon$    $\rho=%1.2f\sigma^{-3}$" %(Ts[T_idx], rho))
