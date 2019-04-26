@@ -10,7 +10,9 @@ struct Particles {
   float mass;
   float energy;
   float kinetic;
-  int* lista;
+  int* siguiente;
+  int* anterior;
+  int* primero;
   int* celda;
 	int M;
   float l;
@@ -37,7 +39,7 @@ float distancia_fases(float *q1, float *q2, float *p1, float *p2, int *delta_idx
 float interaction(float *q1, float *q2, float *p1, float *p2, int *delta_idx, float l, struct Pauli *pauli);
 int energia(struct Particles *parts, struct Pauli *pauli);
 float delta_energia_kin(struct Particles *parts, float *new_p, int i);
-float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, float *new_q, float *new_p, int i, int new_m);
+float delta_energia_pot(struct Particles *parts, struct Pauli *pauli, float *new_q, float *new_p, int i, int *new_ms, int *ms);
 float uniform();
 float boltzmann(float sigma);
 int step(struct Particles *parts, struct Pauli *pauli, struct Externos *param);
