@@ -5,7 +5,7 @@ LD_FLAGS = -shared
 C_FLAGS = -g -Ofast -fPIC -std=gnu99
 
 
-all: pressure.so fermi_gas.e lj_gas.e NM/NM.e NM/layers/NM_layers.e NSM/NSM_layers.e
+all: pressure.so fermi_gas.e lj_gas.e NM/NM.e NM/layers/NM_layers.e NSM/NSM_layers.e fermi_gas_red.e params_Pauli/fermi_gas_params.e
 
 %.e: %.o
 	$(CC) $(C_FLAGS) $^ -o $@ -lm
