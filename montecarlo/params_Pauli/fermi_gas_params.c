@@ -492,7 +492,7 @@ int main(int argc, char *argv[]){
 
 // Particulas
   struct Particles parts;
-  int N = 20;
+  int N = 21;
   parts.n = N*N*N;
   parts.q = (float *) malloc(3*parts.n*sizeof(float));
   parts.p = (float *) malloc(3*parts.n*sizeof(float));
@@ -565,6 +565,17 @@ int main(int argc, char *argv[]){
     pauli.po = 110; // MeV/c
     pauli.D = 300;  // MeV
     pauli.scut2 = 10;
+    pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
+
+    delta_qo = 1.5*pauli.qo;
+    delta_po = 1.5*pauli.po;
+  }
+// PARAMETROS 7; Maruyama modificado
+  if (P==7){
+    pauli.qo = 6; // fm
+    pauli.po = 61.969; // MeV/c
+    pauli.D = 5.165;  // MeV
+    pauli.scut2 = 6.25;
     pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
 
     delta_qo = 1.5*pauli.qo;
