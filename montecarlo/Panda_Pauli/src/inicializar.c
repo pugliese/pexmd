@@ -29,7 +29,6 @@ int energia(struct Particles *parts, struct Interaction *pot_tot){
     mx = m/(M*M);
     my = (m/M) % M;
     mz = m % M;
-    i = parts->primero[m];
     for (int k = 0; k < 14; k++){
       idx = (((mx+idxs[3*k]+M) % M)*M + (my+idxs[3*k+1]+M) % M)*M + (mz+idxs[3*k+2]+M) % M;
       i = parts->primero[m];
@@ -57,15 +56,18 @@ int energia(struct Particles *parts, struct Interaction *pot_tot){
 }
 
 float set_box(struct Particles *parts, float rcut, float L){
-  int n_lado = pow(parts->n, 1.0/3.0), i;
+  int n_lado = 1, i = 0, t;
+  while (n_lado*n_lado*n_lado < parts->n) n_lado++;
   float dL = L/n_lado;
   for(int x = 0; x < n_lado; x++){
     for(int y = 0; y < n_lado; y++){
       for(int z = 0; z < n_lado; z++){
-        i = x*n_lado*n_lado + y*n_lado + z;
         parts->q[3*i] = dL*(0.5 + x);
         parts->q[3*i+1] = dL*(0.5 + y);
         parts->q[3*i+2] = dL*(0.5 + z);
+        t = x + y + z;
+        parts->type[i] = 2*(t%2) + (t>1);
+        i++;
       }
     }
   }
@@ -98,14 +100,15 @@ int inicializar(struct Particles *parts, int *comps, int n_types, float mass, fl
         i++;
     }
   }
+  shuffle_array(parts->type, parts->n);
 
   parts->q = (float *) malloc(3*parts->n*sizeof(float));
   parts->p = (float *) malloc(3*parts->n*sizeof(float));
+  parts->mass = mass;
   set_box(parts, pot_tot->rcut, L);
   set_p(parts, T);
-  parts->mass = mass;
 
-  //energia()
+  energia(parts, pot_tot);
 
   return 0;
 }

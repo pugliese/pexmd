@@ -7,7 +7,7 @@
 inline float distancia(float *q1, float *q2, int *delta_idx, float l){
   double dq2 = 0;
   for(int k = 0; k < 3; k++){
-    dq2 = dq2 + (q1[k] - q2[k] + delta_idx[k]*l)*(q1[k] - q2[k] + delta_idx[k]*l);
+    dq2 += (q1[k] - q2[k] + delta_idx[k]*l)*(q1[k] - q2[k] + delta_idx[k]*l);
   }
   return dq2;
 }
@@ -31,7 +31,7 @@ inline float interaction_panda_nn(float r, struct Panda_nn *panda_nn){
 
 inline float interaction_panda_np(float r, struct Panda_np *panda_np){
   float pot = 0;
-  if (r < panda_np->rcut){
+  if (r <= panda_np->rcut){
     pot = panda_np->V_r*exp(-panda_np->mu_r*r)/r - panda_np->V_a*exp(-panda_np->mu_a*r)/r - panda_np->shift;
   }
   return pot;

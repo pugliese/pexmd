@@ -10,6 +10,7 @@ int armar_lista(struct Particles *parts, float rcut, float L){
   parts->M = (int) floor(L/rcut);
   parts->l = L/parts->M;
   int M3 = parts->M*parts->M*parts->M;
+  printf("Celdas: %f %f --> %d\n", L, parts->l,M3);
   parts->primero = (int *) malloc(M3*sizeof(int));
   parts->siguiente = (int *) malloc(N*sizeof(int));
   parts->anterior = (int *) malloc(N*sizeof(int));
@@ -22,7 +23,10 @@ int armar_lista(struct Particles *parts, float rcut, float L){
     for (int k = 0; k < 3; k++){
       idx = idx*parts->M;
       idx += (int) floor(parts->q[3*i+k]/parts->l);
+      //if (parts->q[3*i+k]<parts->l*floor(parts->q[3*i+k]/parts->l)) printf("%f %f\n", parts->q[3*i+k], parts->l*floor(parts->q[3*i+k]/parts->l));
       parts->q[3*i+k] -= parts->l*floor(parts->q[3*i+k]/parts->l);
+      //if (parts->q[3*i+k]>parts->l) printf("%d) Ouch1\n", 3*i+k);
+      //if (parts->q[3*i+k]<0) printf("%d) Ouch2\n", k);
     }
     parts->celda[i] = idx;
     parts->siguiente[i] = parts->primero[idx];    // Su siguiente es el primero previo (o -1 si no habia)
@@ -76,5 +80,26 @@ int print_lista(struct Particles *parts){
     }
     printf("\n");
   }
+  return 0;
+}
+
+int save_lammpstrj(char *filename, struct Particles *parts, float L, int append){
+  FILE *f;
+  if (append) f = fopen(filename, "a");
+  else f = fopen(filename, "w");
+	int m, mx, my, mz, M = parts->M;
+	fprintf(f, "ITEM: TIMESTEP\n%d\nITEM: NUMBER OF ATOMS\n%d\nITEM: BOX BOUNDS pp pp pp\n", 0, parts->n);
+	for(int l = 0; l < 3; l++){
+		fprintf(f, "0 %f\n", L);
+	}
+	fprintf(f, "ITEM: ATOMS id type x y z vx vy vz \n");
+	for(int l = 0; l < parts->n; l++){
+		m = parts->celda[l];
+		mx = m/(M*M);
+		my = (m/M) % M;
+		mz = m % M;
+		fprintf(f, "%d %d %f %f %f %f %f %f\n", l, parts->type[l], mx*parts->l+parts->q[3*l], my*parts->l+parts->q[3*l+1], mz*parts->l+parts->q[3*l+2], parts->p[3*l], parts->p[3*l+1], parts->p[3*l+2]);
+	}
+  fclose(f);
   return 0;
 }
