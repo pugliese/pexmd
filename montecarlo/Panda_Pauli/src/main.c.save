@@ -106,7 +106,7 @@ int main(int argc, char *argv[]){
   params.delta_q = 0.7*pow(0.05/rho, 0.5); // fm
   params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
   char filename_termo[255], filename_config[255];
-  int factor_term = 140000, factor_desc = 50, Nsamp = 200;
+  int factor_term = 1000, factor_desc = 50, Nsamp = 100;
   int append = 0; // Solo un frame para lammps
   N_steps(&parts, &pot_tot, &params, parts.n*factor_term);
   float dT = 0.1;

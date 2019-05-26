@@ -11,7 +11,7 @@
 inline float force_mod_panda_nn(float r, struct Panda_nn *panda_nn){
   float f_mod = 0;
   if (r <= panda_nn->rcut){
-    f_mod = panda_nn->V_o*exp(-panda_nn->mu_o*r)/(r*r)*(1+panda_nn->mu_o*r);
+    f_mod = panda_nn->V_o*exp(-panda_nn->mu_o*r)*(1+panda_nn->mu_o*r)/(r*r*r);
   }
   return f_mod;
 }
@@ -19,7 +19,7 @@ inline float force_mod_panda_nn(float r, struct Panda_nn *panda_nn){
 inline float force_mod_panda_np(float r, struct Panda_np *panda_np){
   float f_mod = 0;
   if (r <= panda_np->rcut){
-    f_mod = panda_np->V_r*exp(-panda_np->mu_r*r)/(r*r)*(1+panda_np->mu_r*r) - panda_np->V_a*exp(-panda_np->mu_a*r)/(r*r)*(1+panda_np->mu_a*r);;
+    f_mod = (panda_np->V_r*exp(-panda_np->mu_r*r)*(1+panda_np->mu_r*r) - panda_np->V_a*exp(-panda_np->mu_a*r)*(1+panda_np->mu_a*r))/(r*r*r);
   }
   return f_mod;
 }

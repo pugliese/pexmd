@@ -10,7 +10,6 @@ int armar_lista(struct Particles *parts, float rcut, float L){
   parts->M = (int) floor(L/rcut);
   parts->l = L/parts->M;
   int M3 = parts->M*parts->M*parts->M;
-  printf("Celdas: %f %f --> %d\n", L, parts->l,M3);
   parts->primero = (int *) malloc(M3*sizeof(int));
   parts->siguiente = (int *) malloc(N*sizeof(int));
   parts->anterior = (int *) malloc(N*sizeof(int));
