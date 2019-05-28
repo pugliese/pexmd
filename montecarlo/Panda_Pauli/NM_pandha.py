@@ -42,10 +42,10 @@ if (tipo == "termo"):
     Tv = data[:,-3]
 
     plt.figure(1)
-    plt.plot(Ts, Ekin+Enuc, "b.-")
+    plt.plot(Ts, Ekin+Enuc, ".-")
     plt.figure(2)
-    plt.plot(Ts, Ekin, "r.-")
-    leyenda.append(r"$\rho = %.3f$fm$^{-3}$")
+    plt.plot(Ts, Ekin, ".-")
+    leyenda.append(r"$\rho = %.3f$fm$^{-3}$" %rho)
 
   plt.figure(1)
   plt.xlabel("$T$ [MeV]")

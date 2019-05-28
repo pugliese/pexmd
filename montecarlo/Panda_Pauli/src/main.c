@@ -92,7 +92,7 @@ int main(int argc, char *argv[]){
   }
 */
 
-
+/*
 // MUESTREO EN TEMPERATURA - 1000 particulas
   // Particulas
   N = 10;
@@ -116,11 +116,83 @@ int main(int argc, char *argv[]){
   fclose(fp);
   for (int t = 0; t < 40; t++){
     energia(&parts, &pot_tot);
-    params.delta_q = 0.7*pow(params.T/5, 0.45)*pow(0.05/rho, 0.5); // fm
+    params.delta_q = 0.7*sqrt(params.T/5)*pow(0.05/rho, 0.5); // fm
     params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
     printf("rho = %.2f fm^-3 | T = %.2f MeV\n", rho, params.T);
     muestrear_termo(filename_termo, &parts, &pot_tot, &params, Nsamp, factor_desc, factor_term);
     sprintf(filename_config, "data_sin_pauli_1000/config_%.3f_%.3f.lammpstrj", rho, params.T);
+    save_lammpstrj(filename_config, &parts, params.L, append);
+    params.T -= dT;
+  }
+*/
+/*
+// MUESTREO EN TEMPERATURA - 1000 particulas - paso chico con checkpoint
+  // Particulas
+  N = 10;
+  N = N*N*N;
+  struct Particles parts;
+  parts.mass = 938; // MeV/c^2
+  load_lammpstrj("data_sin_pauli_1000/config_0.050_2.500.lammpstrj", &parts, &params.L, pot_tot.rcut);
+  save_lammpstrj("que_mierda_cargo.lammpstrj", &parts, params.L, 0);
+  for (int i = 0; i < N; i++){
+    printf("%.2f ", parts.q[3*i+1]);
+  }
+  params.delta_q = 0.5*pow(0.05/rho, 0.5); // fm
+  params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
+  char filename_termo[255], filename_config[255];
+  int factor_term = 24000, factor_desc = 10, Nsamp = 100;
+  int append = 0; // Solo un frame para lammps
+  float dT = 0.1;
+  rho = parts.n/(params.L*params.L*params.L);
+  sprintf(filename_termo, "data_sin_pauli_1000_delta_chico/termo_%.3f.txt", rho);
+
+  FILE* fp = fopen(filename_termo, "w");
+  fclose(fp);
+  params.T = 2.4; // MeV
+  for (int t = 0; t < 24; t++){
+    energia(&parts, &pot_tot);
+    //params.delta_q = 0.5*sqrt(params.T/4)*pow(0.05/rho, 0.5); // fm
+    params.delta_q = 0.25*sqrt(params.T/4)*pow(0.05/rho, 0.5); // fm
+    params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
+    printf("rho = %.2f fm^-3 | T = %.2f MeV\n", rho, params.T);
+    muestrear_termo(filename_termo, &parts, &pot_tot, &params, Nsamp, factor_desc, factor_term);
+    sprintf(filename_config, "data_sin_pauli_1000_delta_chico/config_%.3f_%.3f.lammpstrj", rho, params.T);
+    save_lammpstrj(filename_config, &parts, params.L, append);
+    params.T -= dT;
+  }
+*/
+
+// MUESTREO EN TEMPERATURA - 1000 particulas - paso grande con checkpoint
+  // Particulas
+  N = 10;
+  N = N*N*N;
+  struct Particles parts;
+  parts.mass = 938; // MeV/c^2
+  load_lammpstrj("data_sin_pauli_1000/config_0.050_2.500.lammpstrj", &parts, &params.L, pot_tot.rcut);
+  save_lammpstrj("que_mierda_cargo.lammpstrj", &parts, params.L, 0);
+  for (int i = 0; i < N; i++){
+    printf("%.2f ", parts.q[3*i+1]);
+  }
+  params.delta_q = 0.5*pow(0.05/rho, 0.5); // fm
+  params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
+  char filename_termo[255], filename_config[255];
+  int factor_term = 50000, factor_desc = 50, Nsamp = 100;
+  int append = 0; // Solo un frame para lammps
+  float dT = 0.1;
+  rho = parts.n/(params.L*params.L*params.L);
+  sprintf(filename_termo, "data_sin_pauli_1000_delta_grande/termo_%.3f.txt", rho);
+
+  FILE* fp = fopen(filename_termo, "w");
+  fclose(fp);
+  params.T = 2.4; // MeV
+  for (int t = 0; t < 24; t++){
+    energia(&parts, &pot_tot);
+    //params.delta_q = 0.5*sqrt(params.T/4)*pow(0.05/rho, 0.5); // fm
+    params.delta_q = 1.0*sqrt(params.T/4)*pow(0.05/rho, 0.5); // fm
+    params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
+    printf("rho = %.2f fm^-3 | T = %.2f MeV\n", rho, params.T);
+    muestrear_termo(filename_termo, &parts, &pot_tot, &params, Nsamp, factor_desc, factor_term);
+    sprintf(filename_config, "data_sin_pauli_1000_delta_grande/config_%.3f_%.3f.lammpstrj", rho, params.T);
     save_lammpstrj(filename_config, &parts, params.L, append);
     params.T -= dT;
   }

@@ -7,7 +7,7 @@ SOURCE_C = $(wildcard src/*.c)
 OBJECTS_C = $(patsubst src/%.c, bin/%_c.o, $(SOURCE_C))
 
 
-CFLAGS = -std=gnu99 -O3 -Wall
+CFLAGS = -std=gnu99 -Ofast -Wall
 EXECUTABLE = NM_PP.e
 
 default: help

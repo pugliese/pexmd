@@ -22,10 +22,7 @@ int armar_lista(struct Particles *parts, float rcut, float L){
     for (int k = 0; k < 3; k++){
       idx = idx*parts->M;
       idx += (int) floor(parts->q[3*i+k]/parts->l);
-      //if (parts->q[3*i+k]<parts->l*floor(parts->q[3*i+k]/parts->l)) printf("%f %f\n", parts->q[3*i+k], parts->l*floor(parts->q[3*i+k]/parts->l));
       parts->q[3*i+k] -= parts->l*floor(parts->q[3*i+k]/parts->l);
-      //if (parts->q[3*i+k]>parts->l) printf("%d) Ouch1\n", 3*i+k);
-      //if (parts->q[3*i+k]<0) printf("%d) Ouch2\n", k);
     }
     parts->celda[i] = idx;
     parts->siguiente[i] = parts->primero[idx];    // Su siguiente es el primero previo (o -1 si no habia)
@@ -100,5 +97,31 @@ int save_lammpstrj(char *filename, struct Particles *parts, float L, int append)
 		fprintf(f, "%d %d %f %f %f %f %f %f\n", l, parts->type[l], mx*parts->l+parts->q[3*l], my*parts->l+parts->q[3*l+1], mz*parts->l+parts->q[3*l+2], parts->p[3*l], parts->p[3*l+1], parts->p[3*l+2]);
 	}
   fclose(f);
+  return 0;
+}
+
+int load_lammpstrj(char *filename, struct Particles *parts, float* L, float rcut){
+  FILE *f = fopen(filename, "r");
+  char buffer[255];
+  int id;
+  for(int l = 0; l < 3; l++){
+    fgets(buffer, 255, f);
+  }
+  id = fscanf(f, "%d\n", &parts->n);
+  for(int l = 0; l < 2; l++){
+    fgets(buffer, 255, f);
+  }
+  id = fscanf(f, "0 %f\n", L);
+  for(int l = 0; l < 2; l++){
+    fgets(buffer, 255, f);
+  }
+  parts->type = (int *) malloc(parts->n*sizeof(int));
+  parts->q = (float *) malloc(3*parts->n*sizeof(float));
+  parts->p = (float *) malloc(3*parts->n*sizeof(float));
+	for(int l = 0; l < parts->n; l++){
+		id = fscanf(f, "%d %d %f %f %f %f %f %f\n", &id, parts->type+l, parts->q+3*l, parts->q+3*l+1, parts->q+3*l+2, parts->p+3*l, parts->p+3*l+1, parts->p+3*l+2);
+	}
+  fclose(f);
+  armar_lista(parts, rcut, *L);
   return 0;
 }
