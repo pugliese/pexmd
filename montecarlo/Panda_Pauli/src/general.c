@@ -14,7 +14,7 @@ int elegir_part(int N){
 }
 
 float uniform(){
-  float p = ((float) rand())/RAND_MAX;
+  float p = ((float) rand())/((float) RAND_MAX);
   return p;
 }
 

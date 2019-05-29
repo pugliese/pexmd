@@ -14,10 +14,15 @@ int main(int argc, char *argv[]){
 
   srand(1);
   float rho = 0.2;
+  char opcion = 'g';
   if (argc >= 2){
-    sscanf(argv[1], "%f\n", &rho);
+    sscanf(argv[1], "%c\n", &opcion);
+    if (argc >= 3){
+      sscanf(argv[2], "%f\n", &rho);
+    }
   }
 
+  struct Particles parts;
 // Potenciales
   struct Pauli pauli;
   pauli.qo = 1.644; // fm
@@ -64,7 +69,6 @@ int main(int argc, char *argv[]){
 /*
 // MUESTREO EN TEMPERATURA
   // Particulas
-  struct Particles parts;
   float mass = 938; // MeV/c^2
   int comps[4] = {N/4, N/4, N/4, N/4};
   inicializar(&parts, comps, 4, mass, params.L, params.T, &pot_tot);
@@ -98,7 +102,6 @@ int main(int argc, char *argv[]){
   N = 10;
   params.L = N/pow(rho, 1.0/3); // mayor a 2*qo*scut, rho en fm^-3
   N = N*N*N;
-  struct Particles parts;
   float mass = 938; // MeV/c^2
   int comps[4] = {N/4, N/4, N/4, N/4};
   inicializar(&parts, comps, 4, mass, params.L, params.T, &pot_tot);
@@ -130,7 +133,6 @@ int main(int argc, char *argv[]){
   // Particulas
   N = 10;
   N = N*N*N;
-  struct Particles parts;
   parts.mass = 938; // MeV/c^2
   load_lammpstrj("data_sin_pauli_1000/config_0.050_2.500.lammpstrj", &parts, &params.L, pot_tot.rcut);
   save_lammpstrj("que_mierda_cargo.lammpstrj", &parts, params.L, 0);
@@ -161,12 +163,11 @@ int main(int argc, char *argv[]){
     params.T -= dT;
   }
 */
-
+/*
 // MUESTREO EN TEMPERATURA - 1000 particulas - paso grande con checkpoint
   // Particulas
   N = 10;
   N = N*N*N;
-  struct Particles parts;
   parts.mass = 938; // MeV/c^2
   load_lammpstrj("data_sin_pauli_1000/config_0.050_2.500.lammpstrj", &parts, &params.L, pot_tot.rcut);
   save_lammpstrj("que_mierda_cargo.lammpstrj", &parts, params.L, 0);
@@ -196,12 +197,11 @@ int main(int argc, char *argv[]){
     save_lammpstrj(filename_config, &parts, params.L, append);
     params.T -= dT;
   }
-
+*/
 /*
 // MUESTREO DE UNICA TEMPERATURA
   int factor_term = 3000, t;
   params.T = 0.55; // MeV
-  struct Particles parts;
   float mass = 938; // MeV/c^2
   int comps[4] = {N/4, N/4, N/4, N/4};
   inicializar(&parts, comps, 4, mass, params.L, params.T, &pot_tot);
@@ -220,6 +220,50 @@ int main(int argc, char *argv[]){
   printf("%ld%% en %d segundos\n", (aceptados)/(parts.n*factor_term), (int)time(NULL)-t);
   save_lammpstrj(filename_config, &parts, params.L, 0);
 */
+
+// MUESTREO DE UNICA TEMPERATURA - 1000 particulas con paso chico
+  if(opcion=='g'){
+    int factor_term = 3000, t;
+    params.T = 0.55; // MeV
+    float mass = 938; // MeV/c^2
+    int comps[4] = {N/4, N/4, N/4, N/4};
+    inicializar(&parts, comps, 4, mass, params.L, params.T, &pot_tot);
+    energia(&parts, &pot_tot);
+    params.delta_q = 0.25*pow(params.T/5, 0.5)*pow(0.05/rho, 0.5); // fm
+    params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
+    char filename_config[255];
+    sprintf(filename_config, "data_sin_pauli_1000_delta_chico/config_%.3f_%.3f.lammpstrj", rho, params.T);
+    t = time(NULL);
+    long int aceptados = 0;
+    for(int i = 0; i < 100; i++){
+      aceptados += N_steps(&parts, &pot_tot, &params, parts.n*factor_term);
+      printf("\rProgreso: %d%%", i+1);
+      fflush(stdout);
+    }
+    printf("\n%ld%% en %d segundos\n", (aceptados)/(parts.n*factor_term), (int)time(NULL)-t);
+    save_lammpstrj(filename_config, &parts, params.L, 0);
+  }
+  if(opcion=='c'){
+    int factor_term = 3000, t;
+    params.T = 0.55; // MeV
+    float mass = 938; // MeV/c^2
+    int comps[4] = {N/4, N/4, N/4, N/4};
+    inicializar(&parts, comps, 4, mass, params.L, params.T, &pot_tot);
+    energia(&parts, &pot_tot);
+    params.delta_q = 1*pow(params.T/5, 0.5)*pow(0.05/rho, 0.5); // fm
+    params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
+    char filename_config[255];
+    sprintf(filename_config, "data_sin_pauli_1000_delta_grande/config_%.3f_%.3f.lammpstrj", rho, params.T);
+    t = time(NULL);
+    long int aceptados = 0;
+    for(int i = 0; i < 100; i++){
+      printf("\rProgreso: %d%%", i);
+      fflush(stdout);
+      aceptados += N_steps(&parts, &pot_tot, &params, parts.n*factor_term);
+    }
+    printf("%ld%% en %d segundos\n", (aceptados)/(parts.n*factor_term), (int)time(NULL)-t);
+    save_lammpstrj(filename_config, &parts, params.L, 0);
+  }
   liberar(&parts);
   liberar_LUTs(&pot_tot);
   return 0;
