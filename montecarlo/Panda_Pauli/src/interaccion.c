@@ -7,7 +7,7 @@
 inline float distancia(float *q1, float *q2, int *delta_idx, float l){
   double dq2 = 0;
   for(int k = 0; k < 3; k++){
-    dq2 += (q1[k] - q2[k] + delta_idx[k]*l)*(q1[k] - q2[k] + delta_idx[k]*l);
+    dq2 += (q1[k] - q2[k] - delta_idx[k]*l)*(q1[k] - q2[k] - delta_idx[k]*l);
   }
   return dq2;
 }
@@ -82,6 +82,12 @@ inline float interaction(int t1, int t2, float rsq, float *p1, float *p2, struct
 
 float eval_LUT(float x, float *LUT, float xcut, float dx){
   float res = 0;
+
+  if(x < dx){
+    //printf("Fuck it %.3f<%.3f\n", x, dx);
+    return LUT[0];
+  }
+
   if (x < xcut){
     float a = x/dx;
     int i = (int) a;
