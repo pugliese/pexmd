@@ -7,9 +7,11 @@
 
 int armar_lista(struct Particles *parts, float rcut, float L){
   int idx, N = parts->n;
+  float c;
   parts->M = (int) floor(L/rcut);
   parts->l = L/parts->M;
   int M3 = parts->M*parts->M*parts->M;
+  printf("Sistema de %dx%dx%d = %d celdas de lado %f\n", parts->M, parts->M, parts->M, M3, parts->l);
   parts->primero = (int *) malloc(M3*sizeof(int));
   parts->siguiente = (int *) malloc(N*sizeof(int));
   parts->anterior = (int *) malloc(N*sizeof(int));
@@ -21,8 +23,9 @@ int armar_lista(struct Particles *parts, float rcut, float L){
     idx = 0;
     for (int k = 0; k < 3; k++){
       idx = idx*parts->M;
-      idx += (int) floor(parts->q[3*i+k]/parts->l);
-      parts->q[3*i+k] -= parts->l*floor(parts->q[3*i+k]/parts->l);
+      c = parts->q[3*i+k]/parts->l;
+      idx += (int) floor(c);
+      parts->q[3*i+k] -= parts->l*floor(c);
     }
     parts->celda[i] = idx;
     parts->siguiente[i] = parts->primero[idx];    // Su siguiente es el primero previo (o -1 si no habia)

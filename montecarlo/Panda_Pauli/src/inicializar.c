@@ -36,7 +36,7 @@ int energia(struct Particles *parts, struct Interaction *pot_tot){
         j = parts->primero[idx];
         while (j !=-1 && j != i){
           rsq = distancia(parts->q+3*i, parts->q+3*j, idxs+3*k, parts->l);
-          pot = pot + interaction_sin_LUT(parts->type[i], parts->type[j], rsq, parts->p+3*i, parts->p+3*j, pot_tot, &pot_pauli);
+          pot = pot + interaction(parts->type[i], parts->type[j], rsq, parts->p+3*i, parts->p+3*j, pot_tot, &pot_pauli);
           j = parts->siguiente[j];
         }
         i = parts->siguiente[i];
