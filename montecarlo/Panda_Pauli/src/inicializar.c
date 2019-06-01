@@ -50,10 +50,60 @@ int energia(struct Particles *parts, struct Interaction *pot_tot){
     }
   }
   parts->kinetic = 0.5*kin/parts->mass;
-  parts->energy_panda = pot - pot_pauli;
+  //parts->energy_panda = pot - pot_pauli;
+  parts->energy_panda = pot;
   parts->energy_pauli = pot_pauli;
   return 0;
 }
+
+int energia_sin_LUT(struct Particles *parts, struct Interaction *pot_tot){
+  float kin = 0, pot = 0, rsq, pot_pauli = 0;
+  int i, j, mx, my, mz, idx, idxs[3*27];
+  int M = parts->M, M3 = M*M*M;
+  for (int k = 0; k < 9; k++){
+    idxs[3*k] = -1;
+    idxs[3*k+1] = k/3 - 1;
+    idxs[3*k+2] = k%3 - 1;
+  }
+  for (int k = 9; k < 13; k++){
+    idxs[3*k] = 0;
+    idxs[3*k+1] = (k-9)/2;
+    idxs[3*k+2] = (k-9)%2;
+  }
+  idxs[3*13] = 0;
+  idxs[3*13+1] = 1;
+  idxs[3*13+2] = -1;
+  for (int m = 0; m < M3; m++){
+    mx = m/(M*M);
+    my = (m/M) % M;
+    mz = m % M;
+    for (int k = 0; k < 14; k++){
+      idx = (((mx+idxs[3*k]+M) % M)*M + (my+idxs[3*k+1]+M) % M)*M + (mz+idxs[3*k+2]+M) % M;
+      i = parts->primero[m];
+      while (i != -1){
+        j = parts->primero[idx];
+        while (j !=-1 && j != i){
+          rsq = distancia(parts->q+3*i, parts->q+3*j, idxs+3*k, parts->l);
+          pot = pot + interaction_sin_LUT(parts->type[i], parts->type[j], rsq, parts->p+3*i, parts->p+3*j, pot_tot, &pot_pauli);
+          j = parts->siguiente[j];
+        }
+        i = parts->siguiente[i];
+      }
+    }
+  }
+  // Energia cinetica
+  for(int i = 0; i < parts->n; i++){
+    for(int k = 0; k < 3; k++){
+      kin = kin + (parts->p[3*i+k])*(parts->p[3*i+k]);
+    }
+  }
+  parts->kinetic = 0.5*kin/parts->mass;
+//  parts->energy_panda = pot - pot_pauli;
+  parts->energy_panda = pot;
+  parts->energy_pauli = pot_pauli;
+  return 0;
+}
+
 
 float set_box(struct Particles *parts, float rcut, float L){
   int n_lado = 1, i = 0, t;

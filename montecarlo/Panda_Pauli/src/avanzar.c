@@ -101,7 +101,8 @@ int step_sin_LUT(struct Particles *parts, struct Interaction *pot_tot, struct Ex
     new_ms[k] = (ms[k]+idxs[k]+M) % M;
   }
   float delta_kin = delta_energia_kin(parts, new_p, i);
-  float delta_E = delta_kin + delta_energia_pot_sin_LUT(parts, pot_tot, new_q, new_p, i, new_ms, ms, &delta_pauli);
+  float delta_nuc = delta_energia_pot_sin_LUT(parts, pot_tot, new_q, new_p, i, new_ms, ms, &delta_pauli);
+  float delta_E = delta_kin + delta_nuc + delta_pauli;
   int acepto = (delta_E <= 0) || (uniform() < exp(-delta_E/params->T));
   if (acepto){
     new_m = (new_ms[0]*M + new_ms[1])*M + new_ms[2];
@@ -134,7 +135,8 @@ int step(struct Particles *parts, struct Interaction *pot_tot, struct Externos *
     new_ms[k] = (ms[k]+idxs[k]+M) % M;
   }
   float delta_kin = delta_energia_kin(parts, new_p, i);
-  float delta_E = delta_kin + delta_energia_pot(parts, pot_tot, new_q, new_p, i, new_ms, ms, &delta_pauli);
+  float delta_nuc = delta_energia_pot(parts, pot_tot, new_q, new_p, i, new_ms, ms, &delta_pauli);
+  float delta_E = delta_kin + delta_nuc + delta_pauli;
   int acepto = (delta_E <= 0) || (uniform() < exp(-delta_E/params->T));
   if (acepto){
     new_m = (new_ms[0]*M + new_ms[1])*M + new_ms[2];
@@ -145,7 +147,7 @@ int step(struct Particles *parts, struct Interaction *pot_tot, struct Externos *
     }
     parts->kinetic = parts->kinetic + delta_kin;
     parts->energy_pauli = parts->energy_pauli + delta_pauli;
-    parts->energy_panda = parts->energy_panda + (delta_E - delta_pauli - delta_kin);
+    parts->energy_panda = parts->energy_panda + delta_nuc;
   }
   return acepto;
 }

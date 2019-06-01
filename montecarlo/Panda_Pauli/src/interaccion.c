@@ -47,14 +47,18 @@ inline float interaction_pauli(float rsq, float *p1, float *p2, struct Pauli *pa
 }
 
 inline float interaction_sin_LUT(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, float *pot_pauli){
-  float pot, pot_pauli_aux;
+//  float pot, pot_pauli_aux;
+  float pot;
   float r = sqrt(rsq);
   if (t1/2 == t2/2){
     pot = interaction_panda_nn(r, pot_tot->panda_nn);
     if (t1 == t2){
+      /*
       pot_pauli_aux = interaction_pauli(rsq, p1, p2, pot_tot->pauli);
       *pot_pauli += pot_pauli_aux;
       pot += pot_pauli_aux;
+      */
+      *pot_pauli = interaction_pauli(rsq, p1, p2, pot_tot->pauli);
     }
   }else{
     pot = interaction_panda_np(r, pot_tot->panda_np);
@@ -65,14 +69,16 @@ inline float interaction_sin_LUT(int t1, int t2, float rsq, float *p1, float *p2
 // ---------------------------- TABLAS -----------------------------------------
 
 inline float interaction(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, float *pot_pauli){
-  float pot, pot_pauli_aux;
+//float pot, pot_pauli_aux;
+  float pot;
   if (t1/2 == t2/2){
     pot = eval_LUT(rsq, pot_tot->panda_nn->LUT, pot_tot->panda_nn->rcut2, pot_tot->panda_nn->dr2);
     if (t1 == t2){
       float s2 = rsq/(pot_tot->pauli->qo*pot_tot->pauli->qo) + distancia_p(p1, p2)/(pot_tot->pauli->po*pot_tot->pauli->po);
-      pot_pauli_aux = eval_LUT(s2, pot_tot->pauli->LUT, pot_tot->pauli->scut2, pot_tot->pauli->ds2);
-      *pot_pauli += pot_pauli_aux;
-      pot += pot_pauli_aux;
+//      pot_pauli_aux = eval_LUT(s2, pot_tot->pauli->LUT, pot_tot->pauli->scut2, pot_tot->pauli->ds2);
+//      *pot_pauli += pot_pauli_aux;
+//      pot += pot_pauli_aux;
+      *pot_pauli += eval_LUT(s2, pot_tot->pauli->LUT, pot_tot->pauli->scut2, pot_tot->pauli->ds2);
     }
   }else{
     pot = eval_LUT(rsq, pot_tot->panda_np->LUT, pot_tot->panda_np->rcut2, pot_tot->panda_np->dr2);
@@ -82,12 +88,9 @@ inline float interaction(int t1, int t2, float rsq, float *p1, float *p2, struct
 
 float eval_LUT(float x, float *LUT, float xcut, float dx){
   float res = 0;
-
   if(x < dx){
-    //printf("Fuck it %.3f<%.3f\n", x, dx);
     return LUT[0];
   }
-
   if (x < xcut){
     float a = x/dx;
     int i = (int) a;
