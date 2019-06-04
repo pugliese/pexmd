@@ -131,7 +131,7 @@ float build_LUT_pauli(struct Pauli *pauli, int N){
   float ds2 = pauli->scut2/N, s2 = 0;
   float p[3] = {0, 0, 0};
   pauli->shift = 0;
-  pauli->shift = interaction_pauli(pauli->scut2, p, p, pauli);
+  pauli->shift = interaction_pauli(pauli->scut2*pauli->qo*pauli->qo, p, p, pauli);
   pauli->LUT = (float *) malloc(N*sizeof(float));
   for(int i = 0; i < N; i++){
     s2 = (i+1)*ds2;

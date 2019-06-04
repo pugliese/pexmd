@@ -125,6 +125,38 @@ float set_box(struct Particles *parts, float rcut, float L){
   return dL;
 }
 
+float load_and_rep(char *filename, struct Particles *parts, float rcut, float *L, int K){
+  struct Particles parts2;
+  float L2;
+  load_lammpstrj(filename, &parts2, &L2, rcut);
+  if (L2 < rcut) printf("Fucking forget it\n");
+  *L = L2*K;
+  parts->n = K*K*K*parts2.n;
+  int idx;
+  parts->type = (int *) malloc(parts->n*sizeof(int));
+  parts->q = (float *) malloc(3*parts->n*sizeof(float));
+  parts->p = (float *) malloc(3*parts->n*sizeof(float));
+  for(int x = 0; x < K; x++){
+    for(int y = 0; y < K; y++){
+      for(int z = 0; z < K; z++){
+        idx = (x+K*(y+K*z))*parts2.n;
+        for(int i = 0; i < parts2.n; i++){
+          parts->q[3*(i+idx)] = parts2.q[3*i]+x*L2;
+          parts->q[3*(i+idx)+1] = parts2.q[3*i+1]+y*L2;
+          parts->q[3*(i+idx)+2] = parts2.q[3*i+2]+z*L2;
+          parts->p[3*(i+idx)] = parts2.p[3*i];
+          parts->p[3*(i+idx)+1] = parts2.p[3*i+1];
+          parts->p[3*(i+idx)+2] = parts2.p[3*i+2];
+          parts->type[i+idx] = parts2.type[i];
+        }
+      }
+    }
+  }
+  armar_lista(parts, rcut, *L);
+  liberar(&parts2);
+  return 0;
+}
+
 float set_p(struct Particles *parts, float T){
   float sigma = sqrt(T*parts->mass);
   for(int k = 0; k < 3*parts->n; k++){
