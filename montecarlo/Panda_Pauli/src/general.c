@@ -63,6 +63,40 @@ float min(float a, float b){
   }
 }
 
+float norma(float* v){
+  float rsq = 0;
+  for(int k = 0; k < 3; k++){
+    rsq += v[k]*v[k];
+  }
+  return rsq;
+}
+
+int min_vec(float* v, int n){
+  float rsq_min = norma(v), rsq;
+  int idx_min = 0;
+  for(int i = 1; i < n; i++){
+    rsq = norma(v+3*i);
+    if (rsq < rsq_min){
+      idx_min = i;
+      rsq_min = rsq;
+    }
+  }
+  return idx_min;
+}
+
+int max_vec(float* v, int n){
+  float rsq_max = norma(v), rsq;
+  int idx_max = 0;
+  for(int i = 1; i < n; i++){
+    rsq = norma(v+3*i);
+    if (rsq > rsq_max){
+      idx_max = i;
+      rsq_max = rsq;
+    }
+  }
+  return idx_max;
+}
+
 int shuffle_array(int *array, int n){
   if (n > 1){
     int i, t;

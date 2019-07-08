@@ -27,5 +27,6 @@ int actualizar_lista(struct Particles *parts, int i, int idx);
 int print_lista(struct Particles *parts);
 int save_lammpstrj(char *filename, struct Particles *parts, float L, int append);
 int load_lammpstrj(char *filename, struct Particles *parts, float* L, float rcut);
+int load_lammpstrj_guille(char *filename, struct Particles *parts, float* L, float rcut);
 
 #endif

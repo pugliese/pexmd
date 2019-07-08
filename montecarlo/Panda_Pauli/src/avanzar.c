@@ -59,7 +59,6 @@ float delta_energia_pot(struct Particles *parts, struct Interaction *pot_tot, fl
     idxs[0] = k/9 - 1;
     idxs[1] = (k/3)%3 - 1;
     idxs[2] = k%3 - 1;
-    //for(int l = 0; l < 3; l++) idxs[l] = super_idxs[3*k+l];
     idx = (((ms[0] + idxs[0]+M) % M)*M + (ms[1] + idxs[1]+M) % M)*M + (ms[2] + idxs[2]+M) % M;
     j = parts->primero[idx];
     while (j != -1){

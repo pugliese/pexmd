@@ -47,6 +47,7 @@ float distancia_p(float *p1, float *p2);
 float interaction_panda_nn(float r, struct Panda_nn *panda_nn);
 float interaction_panda_np(float r, struct Panda_np *panda_np);
 float interaction_pauli(float rsq, float *p1, float *p2, struct Pauli *pauli);
+float interaction_pauli_factorizado(float rsq, float *p1, float *p2, struct Pauli *pauli);
 float interaction(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, float *pot_pauli);
 float interaction_sin_LUT(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, float *pot_pauli);
 float eval_LUT(float x, float *LUT, float xcut, float dx);

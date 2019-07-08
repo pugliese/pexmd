@@ -4,7 +4,6 @@
 #include "avanzar.h"
 #include "inicializar.h"
 #include "muestreo.h"
-#include "virial.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -29,6 +28,7 @@ int main(int argc, char *argv[]){
   pauli.qo = 1.644; // fm
   pauli.po = 120; // MeV/c
   pauli.D = 207; // MeV
+  pauli.D = 0; // Por ahora sin Pauli
   pauli.scut2 = 10; // 0.7% del maximo
   pauli.scut2 = 5.4*5.4/(pauli.qo*pauli.qo); // 0.7% del maximo
   pauli.shift = pauli.D*exp(-0.5*pauli.scut2);
@@ -70,27 +70,19 @@ int main(int argc, char *argv[]){
 
 // MUESTREO EN TEMPERATURA
   if(opcion=='m'){
-    liberar_LUTs(&pot_tot);
-    pauli.D = 207; // MeV
-    panda_np.V_r = 2.5*3088.118; // MeV
-    panda_np.V_a = 2.5*2666.647; // MeV
-    panda_nn.V_o = 2*373.118; // MeV
-    build_LUTs(&pot_tot, N_LUT, N_LUT, N_LUT);
     // Particulas
     float mass = 938; // MeV/c^2
-    N = 512;
-    params.L = pow(N/rho, 1.0/3); // mayor a 2*qo*scut, rho en fm^-3
     int comps[4] = {N/4, N/4, N/4, N/4};
     inicializar(&parts, comps, 4, mass, params.L, params.T, &pot_tot);
     energia(&parts, &pot_tot);
     params.delta_q = 0.5*sqrt(params.T/4)*sqrt(0.05/rho); // fm
     params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
     char filename_termo[255], filename_config[255];
-    int factor_term = 4000, factor_desc = 10, Nsamp = 100;
+    int factor_term = 14000, factor_desc = 10, Nsamp = 100;
     int append = 0; // Solo un frame para lammps
     N_steps(&parts, &pot_tot, &params, parts.n*factor_term);
     float dT = 0.1;
-    sprintf(filename_termo, "data_con_pauli/termo_2.5_2.5_2_%.3f.txt", rho);
+    sprintf(filename_termo, "data_sin_pauli/termo_%.3f.txt", rho);
 
     FILE* fp = fopen(filename_termo, "w");
     fclose(fp);
@@ -100,8 +92,8 @@ int main(int argc, char *argv[]){
       params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
       printf("rho = %.2f fm^-3 | T = %.2f MeV\n", rho, params.T);
       muestrear_termo(filename_termo, &parts, &pot_tot, &params, Nsamp, factor_desc, factor_term);
-      sprintf(filename_config, "data_con_pauli/config_2.5_2.5_2_%.3f_%.3f.lammpstrj", rho, params.T);
-      if (t%10==0 || t>34) save_lammpstrj(filename_config, &parts, params.L, append);
+      sprintf(filename_config, "data_sin_pauli/config_%.3f_%.3f.lammpstrj", rho, params.T);
+      save_lammpstrj(filename_config, &parts, params.L, append);
       params.T -= dT;
     }
   }
@@ -110,7 +102,7 @@ int main(int argc, char *argv[]){
 // MUESTREO EN TEMPERATURA - 1000 particulas
   if(opcion=='n'){
     // Particulas
-    N = 12;
+    N = 10;
     params.L = N/pow(rho, 1.0/3); // mayor a 2*qo*scut, rho en fm^-3
     N = N*N*N;
     float mass = 938; // MeV/c^2
@@ -120,11 +112,11 @@ int main(int argc, char *argv[]){
     params.delta_q = 0.5*pow(0.05/rho, 0.5); // fm
     params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
     char filename_termo[255], filename_config[255];
-    int factor_term = 10000, factor_desc = 25, Nsamp = 100;
+    int factor_term = 25000, factor_desc = 50, Nsamp = 100;
     int append = 0; // Solo un frame para lammps
     N_steps(&parts, &pot_tot, &params, parts.n*factor_term);
     float dT = 0.1;
-    sprintf(filename_termo, "data_con_pauli_1728/termo_%.3f.txt", rho);
+    sprintf(filename_termo, "data_sin_pauli_1000/termo_%.3f.txt", rho);
 
     FILE* fp = fopen(filename_termo, "w");
     fclose(fp);
@@ -134,57 +126,66 @@ int main(int argc, char *argv[]){
       params.delta_p = 0.5*sqrt(parts.mass*params.T); // MeV/c
       printf("rho = %.2f fm^-3 | T = %.2f MeV\n", rho, params.T);
       muestrear_termo(filename_termo, &parts, &pot_tot, &params, Nsamp, factor_desc, factor_term);
-      sprintf(filename_config, "data_con_pauli_1728/config_%.3f_%.3f.lammpstrj", rho, params.T);
-      if (t%5==0 || t>34) save_lammpstrj(filename_config, &parts, params.L, append);
+      sprintf(filename_config, "data_sin_pauli_1000/config_%.3f_%.3f.lammpstrj", rho, params.T);
+      save_lammpstrj(filename_config, &parts, params.L, append);
       params.T -= dT;
     }
   }
 
-
   if(opcion=='s'){
-    printf("Opcion para hallar fundamental en momentos para una SC fija\n\n");
-    // Particulas
-    int segs = time(NULL);
-    char filename_config[255];
-    sprintf(filename_config, "fundamental/config_redondear_%.3f_0.100.lammpstrj", rho);
-    load_and_rep(filename_config, &parts, pot_tot.rcut, &params.L, 3);
-    params.T = 0.1;
-    parts.mass = 938;
-    energia(&parts, &pot_tot);
-    params.delta_q = 0; // fm
-    params.delta_p = 0.8*sqrt(parts.mass*params.T); // MeV/c
-    float E_tot_init = (parts.kinetic + parts.energy_panda + parts.energy_pauli)/parts.n, PyT[2], Teff, E_tot_final;
-    printf("Inicial: %f + %f + %f = %f\n", parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, E_tot_init);
+    printf("Opcion simple cubica con/sin Pauli\n");
+    float rho_min = 0.100, rho_max = 0.250, delta_rho = 2*0.005;
+    float a_max = 15.0, a_min = 10.0, delta_a = 0.25;
+    float b_max = 0.5, b_min = 0, delta_b = 0.025;
 
-    int factor_term = 5000, aceptados = 0, N_temps = 10;
-    for(int t = 0; t < N_temps; t++){
-      Teff = 0;
-      aceptados = 0;
-      params.delta_p = 0.8*sqrt(parts.mass*params.T); // MeV/c
-      for(int i = 0; i < 100; i++){
-        printf("Progress: %d%%\r", i);
-        fflush(stdout);
-        aceptados += N_steps(&parts, &pot_tot, &params, parts.n*factor_term/100);
-        if (70 <= i){
-          presion_temperatura(&parts, &pot_tot, &params, PyT);
-          Teff += PyT[1]/30;
+    params.T = 0.0; // MeV
+    float mass = 938; // MeV/c^2
+    int comps[4] = {N/4, N/4, N/4, N/4};
+    char filename[255];
+    params.L = pow(N/rho_min, 1.0/3); // mayor a 2*qo*scut, rho en fm^-3
+    inicializar(&parts, comps, 4, mass, params.L, params.T, &pot_tot);
+
+    pot_tot.pauli->D = 207; // MeV
+    liberar_LUTs(&pot_tot);
+    build_LUTs(&pot_tot, N_LUT, N_LUT, N_LUT);
+    energia(&parts, &pot_tot);
+
+    int idx_ref = 1000;
+    float ref_np = pot_tot.panda_np->LUT[idx_ref], factor_np;
+    float ref_nn = pot_tot.panda_nn->LUT[idx_ref], factor_nn;
+    int frame = 0;
+    //float p0;
+    for(rho = rho_min; rho <= rho_max; rho += delta_rho){
+      printf("\nrho = %.3f\n", rho);
+      params.L = pow(N/rho, 1.0/3); // mayor a 2*qo*scut, rho en fm^-3
+      set_box(&parts, pot_tot.rcut, params.L);
+      save_lammpstrj("SC/configs.lammpstrj", &parts, params.L, frame);
+      frame++;
+      factor_np = ref_np/pot_tot.panda_np->LUT[idx_ref];
+      for(int i = 0; i < N_LUT; i++)  pot_tot.panda_np->LUT[i] *= factor_np;
+      factor_nn = ref_nn/pot_tot.panda_nn->LUT[idx_ref];
+      for(int j = 0; j < N_LUT; j++)  pot_tot.panda_nn->LUT[j] *= factor_nn;
+      energia(&parts, &pot_tot);
+      printf("%f %f\n", parts.energy_panda/N, parts.energy_pauli/N);
+      sprintf(filename, "SC/data_%.3f.txt", rho);
+      FILE *fp = fopen(filename, "w");
+      fprintf(fp, "%f ", parts.energy_panda/N);
+      for(float b = b_max; b >= b_min; b -= delta_b)  fprintf(fp, " %f", b);
+      for(float a = a_min; a <= a_max; a += delta_a){
+        factor_np = a*ref_np/pot_tot.panda_np->LUT[idx_ref];
+        for(int i = 0; i < N_LUT; i++)  pot_tot.panda_np->LUT[i] *= factor_np;
+        fprintf(fp, "\n%f", a);
+        for(float b = b_max; b >= b_min; b -= delta_b){
+          factor_nn = b*ref_nn/pot_tot.panda_nn->LUT[idx_ref];
+          for(int j = 0; j < N_LUT; j++)  pot_tot.panda_nn->LUT[j] *= factor_nn;
+          printf("a: %d%%  |||  b: %d%%\r", (int) floor(100*(a-a_min)/(a_max-a_min)), (int) floor(100*(b_max-b)/(b_max-b_min)));
+          fflush(stdout);
+          energia(&parts, &pot_tot);
+          fprintf(fp, " %f", (parts.energy_panda+parts.energy_pauli)/N);
         }
       }
-      E_tot_final = (parts.kinetic + parts.energy_panda + parts.energy_pauli)/parts.n;
-      printf("T=%.3f: %f + %f + %f = %f\n", Teff, parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, E_tot_final);
-      printf("Aceptacion: %d%%\n", (100*aceptados)/(factor_term*parts.n));
-      params.T -= 0.01;
+      fclose(fp);
     }
-    sprintf(filename_config, "fundamental/config_1728_x1_%.3f_0.010.lammpstrj", rho);
-    save_lammpstrj(filename_config, &parts, params.L, 0);
-    /*
-    E_tot_final = (parts.kinetic + parts.energy_panda + parts.energy_pauli)/parts.n;
-    printf("  Final: %f) %f + %f + %f = %f | T = %.3f\n", parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, E_tot_final, Teff);
-    if(E_tot_init > E_tot_final)  printf("La energia total bajo\n");
-    else  printf("La energia total subio\n\n");
-    */
-    segs = time(NULL) - segs;
-    printf("Duracion: %d hs, %d min, %d segs\n", segs/(60*60), (segs/60)%60, segs%60);
   }
   if(opcion=='f'){
     float a = 1;
@@ -194,14 +195,13 @@ int main(int argc, char *argv[]){
     printf("Opcion para hallar fundamental con periodicidad SC con Vnp x%f\n", a);
     // Particulas
     float mass = 938; // MeV/c^2
-    N = 8*8*8;
     N = 4*4*4;
     params.L = pow(N/rho, 1.0/3);
     int comps[4] = {N/4, N/4, N/4, N/4};
     inicializar(&parts, comps, 4, mass, params.L, params.T, &pot_tot);
     energia(&parts, &pot_tot);
     params.delta_q = 0.3*pow(params.T/4, 0.8)*sqrt(0.05/rho); // fm
-    params.delta_p = 0.3*sqrt(4*parts.mass)*pow(params.T/4, 0.8); // MeV/c
+    params.delta_p = 0.25*sqrt(4*parts.mass)*pow(params.T/4, 0.8); // MeV/c
 
     pot_tot.pauli->D = 207; // MeV
     panda_np.V_r = a*3088.118; // MeV
@@ -211,12 +211,11 @@ int main(int argc, char *argv[]){
     energia(&parts, &pot_tot);
 
     char filename_termo[255], filename_config[255];
-    int factor_term = 45000, factor_desc = 50, Nsamp = 100;
+    int factor_term = 20000, factor_desc = 50, Nsamp = 100;
     int append = 0; // Solo un frame para lammps
     N_steps(&parts, &pot_tot, &params, parts.n*factor_term);
     float dT = 0.1;
-    sprintf(filename_termo, "fundamental/termo_512_x%f_%.3f.txt", a, rho);
-    sprintf(filename_termo, "fundamental/termo_fact_x1_%.3f.txt", rho);
+    sprintf(filename_termo, "fundamental/termo_x%f_%.3f.txt", a, rho);
     sprintf(filename_termo, "fundamental/termo_x1_%.3f.txt", rho);
     FILE* fp = fopen(filename_termo, "w");
     fclose(fp);
@@ -226,8 +225,7 @@ int main(int argc, char *argv[]){
       params.delta_p = 0.25*sqrt(4*parts.mass)*pow(params.T/4, 0.8); // MeV/c
       printf("rho = %.2f fm^-3 | T = %.2f MeV\n", rho, params.T);
       muestrear_termo(filename_termo, &parts, &pot_tot, &params, Nsamp, factor_desc, factor_term);
-      sprintf(filename_config, "fundamental/config_512_x%f_%.3f_%.3f.lammpstrj", a, rho, params.T);
-      sprintf(filename_config, "fundamental/config_fact_x1_%.3f_%.3f.lammpstrj", rho, params.T);
+      sprintf(filename_config, "fundamental/config_x%f_%.3f_%.3f.lammpstrj", a, rho, params.T);
       sprintf(filename_config, "fundamental/config_x1_%.3f_%.3f.lammpstrj", rho, params.T);
       if (t%10==0 || t>34) save_lammpstrj(filename_config, &parts, params.L, append);
       params.T -= dT;
@@ -244,30 +242,22 @@ int main(int argc, char *argv[]){
     char filename[255], filename_data[255];
     sprintf(filename_data, "fundamental/Evsrho_temp.txt");
     FILE *fp = fopen(filename_data, "w");
-    float rhos[5] = {0.15, 0.155, 0.16, 0.165, 0.17};
-    float Es[5];
+    float rhos[11] = {0.12, 0.13, 0.14, 0.15, 0.155, 0.16, 0.165, 0.17, 0.18, 0.19, 0.2};
+    float Es[11];
     pot_tot.pauli->D = 207; // MeV
     panda_np.V_r = a*3088.118; // MeV
     panda_np.V_a = a*2666.647; // MeV
     panda_nn.V_o = b*373.118; // MeV
     liberar_LUTs(&pot_tot);
     build_LUTs(&pot_tot, N_LUT, N_LUT, N_LUT);
-    fprintf(fp, "#  rho    E     Ekin      Enuc\n");
-    printf("%f\n", pauli.shift);
-    printf("#  rho    E     Ekin      Enuc\n");
-    for(int r = 0; r < 5; r++){
-      sprintf(filename, "fundamental/config_1728_x1_%.3f_0.010.lammpstrj", rhos[r]);
-      //load_and_rep(filename, &parts, pot_tot.rcut, &params.L, 5);
-      load_lammpstrj(filename, &parts, &params.L, pot_tot.rcut);
+    for(int r = 0; r < 11; r++){
+      sprintf(filename, "fundamental/config_redondear_%.3f_0.100.lammpstrj", rhos[r]);
+      load_and_rep(filename, &parts, pot_tot.rcut, &params.L, 5);
       parts.mass = 938;
       energia(&parts, &pot_tot);
       Es[r] = (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n;
-      printf("%f %f %f %f %f\n", rhos[r], Es[r], parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n);
-      energia_sin_LUT(&parts, &pot_tot);
-      Es[r] = (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n;
       //Es[r] = parts.kinetic/parts.n;
-      fprintf(fp, "%f %f %f %f %f\n", rhos[r], Es[r], parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n);
-      printf("%f %f %f %f %f\n", rhos[r], Es[r], parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n);
+      fprintf(fp, "%f %f %f\n", rhos[r], Es[r], parts.kinetic/parts.n);
     }
     fclose(fp);
   }
@@ -314,7 +304,7 @@ int main(int argc, char *argv[]){
 
     char filename[255];
     sprintf(filename, "fundamental/config_redondear_%.3f_0.100.lammpstrj", rho);
-    sprintf(filename, "fundamental/config_x1_%.3f_0.100.lammpstrj", rho);
+//    sprintf(filename, "fundamental/config_x1_%.3f_0.100.lammpstrj", rho);
     load_lammpstrj(filename, &parts, &params.L, pot_tot.rcut);
     energia(&parts, &pot_tot);
     printf("%.3f)  Inicial  %f + %f + %f = %f\n", rho, parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n);
@@ -322,19 +312,37 @@ int main(int argc, char *argv[]){
     redondear_SC(&parts, pot_tot.rcut, params.L);
     energia(&parts, &pot_tot);
 
-    params.T = 0.1;
+    params.T = 0.05;
     params.delta_q = 0;
     params.delta_p = 2.00*sqrt(4*parts.mass)*pow(params.T/4, 0.8); // MeV/c
     int factor_term = 1000000;
-    factor_term = 10000;
     long int aceptados = N_steps(&parts, &pot_tot, &params, parts.n*factor_term);
     energia(&parts, &pot_tot);
-
     printf("%.3f) Final (%ld%%) %f + %f + %f = %f\n", rho, 100*aceptados/(parts.n*factor_term), parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n);
-    sprintf(filename, "fundamental/config_redondear_512_%.3f_0.100.lammpstrj", rho);
+    sprintf(filename, "fundamental/config_redondear_%.3f_0.100.lammpstrj", rho);
     save_lammpstrj(filename, &parts, params.L, 0);
-  }
 
+    params.T = 0.01;
+    params.delta_p = 2.00*sqrt(4*parts.mass)*pow(params.T/4, 0.8); // MeV/c
+    int factor_term = 1000000;
+    long int aceptados = N_steps(&parts, &pot_tot, &params, parts.n*factor_term);
+    energia(&parts, &pot_tot);
+    printf("%.3f) Final (%ld%%) %f + %f + %f = %f\n", rho, 100*aceptados/(parts.n*factor_term), parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, (parts.kinetic+parts.energy_$
+    save_lammpstrj(filename, &parts, params.L, 0);
+
+    /*
+    liberar(&parts);
+    sprintf(filename, "fundamental/config_x1_%.3f_0.100.lammpstrj", rho);
+    load_and_rep(filename, &parts, pot_tot.rcut, &params.L, 5);
+    energia(&parts, &pot_tot);
+    printf(" Comun : %f + %f + %f = %f\n", parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n);
+    liberar(&parts);
+    sprintf(filename, "fundamental/config_redondear_%.3f_0.100.lammpstrj", rho);
+    load_and_rep(filename, &parts, pot_tot.rcut, &params.L, 5);
+    energia(&parts, &pot_tot);
+    printf("%.3f) Final %f + %f + %f = %f\n", rho, parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n);
+    */
+  }
   if(opcion=='d'){
     printf("Opcion para calcular saturaciones en SC via dilatacion/contraccion\n");
     char filename[255];
@@ -372,14 +380,12 @@ int main(int argc, char *argv[]){
   if(opcion=='g'){
     printf("Calcular la energia de una configuracion de Guille\n");
     char filename[255];
-    float PyT[2];
     sprintf(filename, "fundamental/config_redondear_%.3f_0.100.lammpstrj", rho);
-    //sprintf(filename, "pandha_pauli_spin_mc_n64_rho18_delta001.lammpstrj");
-    //sprintf(filename, "pandha_pauli_mc.lammpstrj");
-    //load_lammpstrj_guille(filename, &parts, &params.L, pot_tot.rcut);
-    load_lammpstrj(filename, &parts, &params.L, pot_tot.rcut);
-    //sprintf(filename, "prueba.lammpstrj");
-    //save_lammpstrj(filename, &parts, params.L, 0);
+    sprintf(filename, "pandha_pauli_spin_mc_n64_rho18_delta001.lammpstrj");
+    load_lammpstrj_guille(filename, &parts, &params.L, pot_tot.rcut);
+    //load_lammpstrj(filename, &parts, &params.L, pot_tot.rcut);
+    sprintf(filename, "prueba.lammpstrj");
+    save_lammpstrj(filename, &parts, params.L, 0);
     parts.mass = 938;
     pot_tot.pauli->D = 207; // MeV
     panda_np.V_r = 3088.118; // MeV
@@ -387,11 +393,8 @@ int main(int argc, char *argv[]){
     liberar_LUTs(&pot_tot);
     build_LUTs(&pot_tot, N_LUT, N_LUT, N_LUT);
     energia(&parts, &pot_tot);
-    presion_temperatura(&parts, &pot_tot, &params, PyT);
-    printf("%f\n", PyT[1]);
     printf("%f + %f + %f = %f\n", parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n);
   }
-
   if(opcion=='2'){
     printf("Calcular la energia de una configuracion de 2 particulas\n");
     char filename[255];
@@ -416,51 +419,8 @@ int main(int argc, char *argv[]){
     int delta_idx[3] = {0, 0, 0};
     float rsq = distancia(parts.q, parts.q+3, delta_idx, 0.0);
     float s2 = rsq/(pauli.qo*pauli.qo) + distancia_p(parts.p, parts.p+3)/(pauli.po*pauli.po);
-    printf("c0 = %d | c1 = %d  |||  dq = %f  |||  dp = %f |||  ds = %f\n", parts.celda[0], parts.celda[1], sqrt(rsq), sqrt(distancia_p(parts.p, parts.p+3)), sqrt(s2));
+    printf("dq = %f  |||  dp = %f |||  ds = %f\n", rsq, sqrt(distancia_p(parts.p, parts.p+3)), sqrt(s2));
     printf("%f + %f + %f = %f\n", parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n, (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n);
-    float PyT[2];
-    presion_temperatura(&parts, &pot_tot, &params, PyT);
-    printf("%f %f\n", PyT[0], PyT[1]);
-  }
-
-  if(opcion=='p'){
-    printf("Opcion para encontrar fundamental en p via punto fijo\n");
-    parts.mass = 938;
-    pot_tot.pauli->D = 207; // MeV
-    panda_np.V_r = 3088.118; // MeV
-    panda_np.V_a = 2666.647; // MeV
-    liberar_LUTs(&pot_tot);
-    build_LUTs(&pot_tot, N_LUT, N_LUT, N_LUT);
-
-    char filename[255];
-    sprintf(filename, "fundamental/config_redondear_%.3f_0.100.lammpstrj", rho);
-    load_lammpstrj(filename, &parts, &params.L, pot_tot.rcut);
-    energia(&parts, &pot_tot);
-    printf("%f ", (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n);
-
-    sprintf(filename, "fundamental/punto_fijo_%.3f.txt", rho);
-    FILE *fp = fopen(filename, "w");
-    float *gorces = (float *) malloc(3*parts.n*sizeof(float));
-    int N_iter = 100000, idx;
-    printf("%f\n", parts.mass);
-    fprintf(fp, "%f ", (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n);
-    for(int i = 0; i < N_iter; i++){
-      punto_fijo(&parts, &pot_tot, &params, gorces);
-      for(int l = 0; l < 3*parts.n; l++)  parts.p[l] = gorces[l];
-      idx = min_vec(parts.p, parts.n);
-      if(i%1000==0)  printf("%f  ", sqrt(norma(parts.p+3*idx)));
-      idx = max_vec(parts.p, parts.n);
-      if(i%1000==0)  printf("%f\n", sqrt(norma(parts.p+3*idx)));
-      energia(&parts, &pot_tot);
-      fprintf(fp, "%f ", (parts.kinetic+parts.energy_panda+parts.energy_pauli)/parts.n);
-    }
-    fclose(fp);
-    free(gorces);
-    float *aux = parts.q;
-    parts.q = parts.p;
-    parts.p = aux;
-    sprintf(filename, "prueba.lammpstrj");
-    save_lammpstrj(filename, &parts, params.L, 0);
   }
   liberar(&parts);
   liberar_LUTs(&pot_tot);

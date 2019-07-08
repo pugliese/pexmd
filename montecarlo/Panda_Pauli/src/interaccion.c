@@ -46,6 +46,16 @@ inline float interaction_pauli(float rsq, float *p1, float *p2, struct Pauli *pa
   return pot;
 }
 
+inline float interaction_pauli_factorizado(float rsq, float *p1, float *p2, struct Pauli *pauli){
+  float pot = 0;
+  float r2_norm = rsq/(pauli->qo*pauli->qo);
+  if (r2_norm <= pauli->scut2){
+    float p2_norm = distancia_p(p1, p2)/(pauli->po*pauli->po);
+    pot = (pauli->D*exp(-0.5*r2_norm) - pauli->shift)*exp(-0.5*p2_norm);
+  }
+  return pot;
+}
+
 inline float interaction_sin_LUT(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, float *pot_pauli){
 //  float pot, pot_pauli_aux;
   float pot;
@@ -58,7 +68,7 @@ inline float interaction_sin_LUT(int t1, int t2, float rsq, float *p1, float *p2
       *pot_pauli += pot_pauli_aux;
       pot += pot_pauli_aux;
       */
-      *pot_pauli = interaction_pauli(rsq, p1, p2, pot_tot->pauli);
+      *pot_pauli += interaction_pauli_factorizado(rsq, p1, p2, pot_tot->pauli);
     }
   }else{
     pot = interaction_panda_np(r, pot_tot->panda_np);
@@ -74,11 +84,11 @@ inline float interaction(int t1, int t2, float rsq, float *p1, float *p2, struct
   if (t1/2 == t2/2){
     pot = eval_LUT(rsq, pot_tot->panda_nn->LUT, pot_tot->panda_nn->rcut2, pot_tot->panda_nn->dr2);
     if (t1 == t2){
+      /*
       float s2 = rsq/(pot_tot->pauli->qo*pot_tot->pauli->qo) + distancia_p(p1, p2)/(pot_tot->pauli->po*pot_tot->pauli->po);
-//      pot_pauli_aux = eval_LUT(s2, pot_tot->pauli->LUT, pot_tot->pauli->scut2, pot_tot->pauli->ds2);
-//      *pot_pauli += pot_pauli_aux;
-//      pot += pot_pauli_aux;
       *pot_pauli += eval_LUT(s2, pot_tot->pauli->LUT, pot_tot->pauli->scut2, pot_tot->pauli->ds2);
+      */
+      *pot_pauli += interaction_pauli_factorizado(rsq, p1, p2, pot_tot->pauli);
     }
   }else{
     pot = eval_LUT(rsq, pot_tot->panda_np->LUT, pot_tot->panda_np->rcut2, pot_tot->panda_np->dr2);
@@ -135,7 +145,7 @@ float build_LUT_pauli(struct Pauli *pauli, int N){
   pauli->LUT = (float *) malloc(N*sizeof(float));
   for(int i = 0; i < N; i++){
     s2 = (i+1)*ds2;
-    pauli->LUT[i] = interaction_pauli(s2, p, p, pauli);
+    pauli->LUT[i] = interaction_pauli(s2*pauli->qo*pauli->qo, p, p, pauli);
   }
   pauli->ds2 = ds2;
   return ds2;

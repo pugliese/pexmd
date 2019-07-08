@@ -50,7 +50,6 @@ int energia(struct Particles *parts, struct Interaction *pot_tot){
     }
   }
   parts->kinetic = 0.5*kin/parts->mass;
-  //parts->energy_panda = pot - pot_pauli;
   parts->energy_panda = pot;
   parts->energy_pauli = pot_pauli;
   return 0;
@@ -98,7 +97,6 @@ int energia_sin_LUT(struct Particles *parts, struct Interaction *pot_tot){
     }
   }
   parts->kinetic = 0.5*kin/parts->mass;
-//  parts->energy_panda = pot - pot_pauli;
   parts->energy_panda = pot;
   parts->energy_pauli = pot_pauli;
   return 0;
@@ -115,9 +113,60 @@ float set_box(struct Particles *parts, float rcut, float L){
         parts->q[3*i] = dL*(0.5 + x);
         parts->q[3*i+1] = dL*(0.5 + y);
         parts->q[3*i+2] = dL*(0.5 + z);
+        if ((x+y+z)%2==0){
+          parts->type[i] = (z%2);
+        }else{
+          parts->type[i] = 3-(y%2);
+        }
+        /*
         t = (x + y + z)%4;
-        parts->type[i] = 2*(t%2) + (t>1);
+        parts->type[i] = 2*(t%2) + t/2;
+        */
         i++;
+      }
+    }
+  }
+  armar_lista(parts, rcut, L);
+  return dL;
+}
+
+float redondear_SC(struct Particles *parts, float rcut, float L){
+  int n_lado = 1;
+  while (n_lado*n_lado*n_lado < parts->n) n_lado++;
+  int idx = min_vec(parts->q, parts->n);
+  float dL = L/n_lado;
+  float q0[3];
+  for(int k = 0; k < 3; k++)  q0[k] = parts->q[3*idx+k];// - 0.5*dL;
+  for(int i = 0; i < parts->n; i++){
+    for(int k = 0; k < 3; k++){
+      parts->q[3*i+k] = dL*(0.5+((int)round((parts->q[3*i+k]-q0[k])/dL)%n_lado));
+    }
+  }
+  armar_lista(parts, rcut, L);
+  return dL;
+}
+
+float set_box_fund_pauli(struct Particles *parts, float rcut, float L){
+  int n_lado = 1, i = 0;
+  while (n_lado*n_lado*n_lado < parts->n) n_lado++;
+  float dL = L/n_lado;
+  for(int x = 0; x < n_lado; x++){
+    for(int y = 0; y < n_lado; y++){
+      for(int z = 0; z < n_lado; z++){
+        parts->q[3*i] = dL*(0.5 + x);
+        parts->q[3*i+1] = dL*(0.5 + y);
+        parts->q[3*i+2] = dL*(0.5 + z);
+        if ((x+y+z)%2==0){
+          parts->type[i] = (z%2);
+        }else{
+          parts->type[i] = 3-(y%2);
+        }
+        i++;
+        if(i==parts->n){
+          x = n_lado;
+          y = n_lado;
+          z = n_lado;
+        }
       }
     }
   }
@@ -193,8 +242,8 @@ int liberar(struct Particles *parts){
 
   free(parts->siguiente);
   free(parts->anterior);
-  free(parts->primero);
   free(parts->celda);
+  free(parts->primero);
 
   return 0;
 }

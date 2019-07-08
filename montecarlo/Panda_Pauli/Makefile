@@ -7,8 +7,9 @@ SOURCE_C = $(wildcard src/*.c)
 OBJECTS_C = $(patsubst src/%.c, bin/%_c.o, $(SOURCE_C))
 
 
-CFLAGS = -std=gnu99 -Ofast -Wall
+CFLAGS = -c -fPIC -std=gnu99 -Ofast -Wall
 EXECUTABLE = NM_PP.e
+LIBRARY = lib.so
 
 default: help
 
@@ -25,15 +26,20 @@ Options:\n\n\
 
 objects: $(OBJECTS_C)
 
+lib: $(LIBRARY)
+
 executable: $(EXECUTABLE)
 
-all: objects executable
+all: objects executable lib
 
 bin/%_c.o: src/%.c
 	$(CC) $(CFLAGS) -c $^ -o $@ -lm
 
 %.e: $(OBJECTS_C)
 	$(LD) $^ -o $@ -lm
+
+%.so: $(OBJECTS_C)
+	$(CC) -shared $^ -o $@
 
 clean:
 	rm -rfv $(OBJECTS_C) $(EXECUTABLE1)
