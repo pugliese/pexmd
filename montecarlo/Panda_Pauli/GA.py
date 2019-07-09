@@ -162,7 +162,7 @@ class Schemata():
   """
   Class for schemata representation: selection, crossover and mutation
   """
-  def __init__(self, selection, crossover, mutation, elitist=False):
+  def __init__(self, selection, crossover, mutation, elitist=False, crossover_rate=0.8):
     """
     Parameters
     ----------
@@ -174,16 +174,20 @@ class Schemata():
 
     mutation: float
         Probability of gen 'flipping' (for each gen), tipically 0.001
+
+    crossover_rate: float
+          Percentage of renewal per generation (successful crossovers)
     """
     self.selection = selection
     self.crossover = crossover
+    self.crossover_rate = crossover_rate
     self.mutation = mutation
     self.elitist = elitist
 
   def select_parents(self, fitness):
     """
-    Return pool of parent selected (indexes) for reproduction
-    Depends on self.selection
+    Return pool of parent selected (indexes) for reproduction.
+    Depends on self.selection.
     -----------
     In a tournament, we choose pairs of individuals and add to the pool the
     fittest of them. Fair and Random defines the criteria used for pairing
@@ -243,6 +247,8 @@ class Schemata():
     (2D array of N x total_bits), creates unmutated offspring.
     Depends on self.crossover; the number of subchromosomes in which each
     parent is separated to recombine (alternating) for the children.
+    Also depends on self.crossover_rate, the chance of actual crossover of
+    parents (if not, they replicate themselves exactly)
     """
     N = len(parents)
     N_genes = len(chromosomes[0,:])
@@ -251,7 +257,10 @@ class Schemata():
     np.random.shuffle(parents)
     for i in range(N//2):
       ps = [parents[2*i], parents[2*i+1]]
-      cuts = np.concatenate([[0], np.sort(np.random.randint(0, N, self.crossover)), [N]])
+      if(np.random.random() < self.crossover_rate):
+        cuts = np.concatenate([[0], np.sort(np.random.randint(0, N, self.crossover)), [N]])
+      else:
+        cuts = np.array([0,N])
       for g in range(len(cuts)-1):
         new_chromosomes[2*i, cuts[g]:cuts[g+1]] = chromosomes[ps[g%2], cuts[g]:cuts[g+1]]
         new_chromosomes[2*i+1, cuts[g]:cuts[g+1]] = chromosomes[ps[(g+1)%2], cuts[g]:cuts[g+1]]
@@ -375,14 +384,14 @@ if (option=="test"):
   # Two continous degeneration of maximum: at x^2+y^2 = 1/4 and x^2+y^2 = 1
   function5 = lambda X: np.exp(-25*(np.sqrt(X[0]**2+X[1]**2)-0.5)**2) + np.exp(-25*(np.sqrt(X[0]**2+X[1]**2)-1)**2)
   # Pandharipande fit for SC lattice
-  if(option_func=="pandha"):
+  if(option_func=="pandha" or option_func=="full"):
     pauli = Pauli(qo = 1.644, po = 120, D = 207*(option_func!="pandha"), scut2 = (5.4/1.644)**2)
     panda_nn = Panda_nn(1.5, 373.118, 5.4)
     panda_np = Panda_np(mu_r = 1.7468, mu_a = 1.6, V_r = 3088.118, V_a = 2666.647, rcut = 5.4)
     pot_tot = TotalPotential(pauli, panda_nn, panda_np)
 
-    rhos = np.array([0.140, 0.150, 0.153, 0.155, 0.158, 0.160, 0.162, 0.165, 0.167, 0.170, 0.180])
     rhos = np.array([0.140, 0.150, 0.160, 0.170, 0.180])
+    rhos = np.array([0.150, 0.153, 0.155, 0.158, 0.160, 0.162, 0.165, 0.167, 0.170])
     E_NM_pandha = np.zeros_like(rhos)
     vec_parts = [0 for rho in rhos]
     L = np.array([3.0], dtype = np.float32)
@@ -396,9 +405,10 @@ if (option=="test"):
     E_NM = lambda rho: np.polyval(params_fit, rhos)
     E_NM_vec = E_NM(rhos)
     V_E = np.var(E_NM_vec)
-    sqrtChi2_VE = np.sqrt(np.mean((E_NM_vec-E_NM_pandha)**2)/V_E)
+    #sqrtChi2_VE = np.sqrt(np.mean((E_NM_vec-E_NM_pandha)**2)/V_E)
+    Chi2_VE = np.mean((E_NM_vec-E_NM_pandha)**2)/V_E
 
-    def curva_energia(params):
+    def curva_energia_pandha(params):
       global pot_tot, parts, panda_nn, panda_np, L
       panda_np.V_a = params[0]*2666.647
       panda_np.V_r = params[0]*3088.118
@@ -409,18 +419,37 @@ if (option=="test"):
         Es[i] = vec_parts[i].energy_panda/vec_parts[i].n
       return Es
 
-    def functionpandha(params):
-      Es = curva_energia(params)
+    def functionpandha(params, alpha=2*np.pi/3):
+      Es = curva_energia_pandha(params)
       Chi2 = np.mean((Es - E_NM_vec)**2)
-      return (1.0 + sqrtChi2_VE)/(1.0 + np.sqrt(Chi2/(V_E)))
+      return np.cbrt((1.0 + Chi2_VE)/(1.0 + Chi2/(V_E)))
+
+    def curva_energia_full(params):
+      global pot_tot, parts, panda_nn, panda_np, L
+      panda_np.V_a = params[0]*2666.647
+      panda_np.V_r = params[0]*3088.118
+      panda_nn.V_o = params[1]*373.118
+      Es = np.zeros_like(rhos)
+      for i in range(len(rhos)):
+        vec_parts[i].energy(pot_tot)
+        Es[i] = (vec_parts[i].energy_panda + vec_parts[i].kinetic)/vec_parts[i].n
+      return Es
+
+    def functionfull(params, alpha=2*np.pi/3):
+      Es = curva_energia_full(params)
+      Chi2 = np.mean((Es - E_NM_vec)**2)
+      return np.cbrt(1.0/(1.0 + Chi2/(V_E)))
+
+    l_bounds = [0.5, 0.5]
+    u_bounds = [2.5, 2.5]
 
   # Chosen function
   function = eval("function"+option_func)
 
   #coding = GenCoding([10,10], [-1, -1.5], [1, 0.5])
-  coding = GenCoding([10, 10], [0.5, 0.5], [2.5, 2.5])
-  scheme = Schemata('Ranking', 2, 0.001, True)
-  N = 100
+  coding = GenCoding([10, 10], l_bounds, u_bounds)
+  scheme = Schemata('Ranking', 2, 0.005, True)
+  N = 50
   solutions = Poblacion(N, coding)
   F = solutions.eval_fitness(function)
   N_steps = 100
@@ -432,12 +461,12 @@ if (option=="test"):
   fig1 = plt.figure(figsize=(23.8, 12.4))
   gs = gridspec.GridSpec(1, 2, width_ratios=[2,1])
   #ax1 = fig1.add_subplot(gs[0], autoscale_on=False, xlim=(-1, 1), ylim=(-1.5, 0.5))
-  ax1 = fig1.add_subplot(gs[0], autoscale_on=False, xlim=(0.5, 2.5), ylim=(0.5, 2.5))
+  ax1 = fig1.add_subplot(gs[0], autoscale_on=False, xlim=(l_bounds[0], u_bounds[0]), ylim=(l_bounds[1], u_bounds[1]))
   ax1.grid()
   line2, = ax1.plot([], [], "ro", markersize=15)
   linefittest, = ax1.plot([], [], "g*", markersize=15)
   line1, = ax1.plot([], [], "bs")
-  ax2 = fig1.add_subplot(gs[1], autoscale_on=False, xlim=(0, N_steps-1), ylim=(0, 1.1))
+  ax2 = fig1.add_subplot(gs[1], autoscale_on=False, xlim=(0, N_steps), ylim=(-0.05, 1.1))
   ax2.grid()
   ax2.set_xlabel("Generacion")
   ax2.set_ylabel("Fitness")
