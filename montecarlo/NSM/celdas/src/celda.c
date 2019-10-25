@@ -4,14 +4,13 @@
 #include <time.h>
 #include <unistd.h>
 
-
 int armar_lista(struct Particles *parts, float rcut, float L){
   int idx, N = parts->n;
   float c;
   parts->M = (int) floor(L/rcut);
   parts->l = L/parts->M;
   int M3 = parts->M*parts->M*parts->M;
-  //printf("Sistema de %dx%dx%d = %d celdas de lado %f\n", parts->M, parts->M, parts->M, M3, parts->l);
+  printf("Sistema de %dx%dx%d = %d celdas de lado %f\n", parts->M, parts->M, parts->M, M3, parts->l);
   parts->primero = (int *) malloc(M3*sizeof(int));
   parts->siguiente = (int *) malloc(N*sizeof(int));
   parts->anterior = (int *) malloc(N*sizeof(int));
@@ -61,6 +60,35 @@ int actualizar_lista(struct Particles *parts, int i, int idx){
     parts->primero[idx] = i;       // i es el nuevo primero
   }
   return idx;
+}
+
+int corregir_celda(float *q, float l){
+  int correccion = (int) floor(q[0]/l);
+  q[0] -= l*correccion;
+	return correccion;
+}
+
+int ajustar_celdas(struct Particles *parts){
+	float l = parts->l;
+	int M = parts->M, idx, new_m, ms[3], i, m = 0;
+	for(ms[0] = 0; ms[0] < M; ms[0]++){
+		for(ms[1] = 0; ms[1] < M; ms[1]++){
+			for(ms[2] = 0; ms[2] < M; ms[2]++){
+				i = parts->primero[m];
+				while(i != -1){
+					new_m = 0;
+					for(int k = 0; k < 3; k++){
+						idx = corregir_celda(parts->q+i, l);
+						new_m = new_m*M + (ms[k] + idx + M) % M;
+					}
+					actualizar_lista(parts, i, new_m);
+					i = parts->siguiente[i];
+				}
+				m++;
+			}
+		}
+	}
+	return 0;
 }
 
 int print_lista(struct Particles *parts){
@@ -124,36 +152,6 @@ int load_lammpstrj(char *filename, struct Particles *parts, float* L, float rcut
 	for(int l = 0; l < parts->n; l++){
 		id = fscanf(f, "%d %d %f %f %f %f %f %f\n", &id, parts->type+l, parts->q+3*l, parts->q+3*l+1, parts->q+3*l+2, parts->p+3*l, parts->p+3*l+1, parts->p+3*l+2);
 	}
-  fclose(f);
-  armar_lista(parts, rcut, *L);
-  return 0;
-}
-
-int load_lammpstrj_guille(char *filename, struct Particles *parts, float* L, float rcut){
-  FILE *f = fopen(filename, "r");
-  char buffer[255];
-  int id;
-  for(int l = 0; l < 3; l++){
-    fgets(buffer, 255, f);
-  }
-  id = fscanf(f, "%d\n", &parts->n);
-  for(int l = 0; l < 2; l++){
-    fgets(buffer, 255, f);
-  }
-  id = fscanf(f, "0.000000 %f\n", L);
-  for(int l = 0; l < 2; l++){
-    fgets(buffer, 255, f);
-  }
-  parts->type = (int *) malloc(parts->n*sizeof(int));
-  parts->q = (float *) malloc(3*parts->n*sizeof(float));
-  parts->p = (float *) malloc(3*parts->n*sizeof(float));
-  float trash;
-	for(int l = 0; l < parts->n; l++){
-		id = fscanf(f, "%d %d %f %f %f %f %f %f %f %f %f %f %f %f\n", &id, parts->type+l, parts->q+3*l, parts->q+3*l+1,
-    parts->q+3*l+2, &trash, &trash, &trash, parts->p+3*l, parts->p+3*l+1, parts->p+3*l+2, &trash, &trash, &trash);
-	}
-  for(int l = 0; l < parts->n; l++) parts->type[l] = 2*(parts->type[l]%2) + (parts->type[l]-1)/2;
-  // Para Guille: 2: prot up | 4: prot down | 1: neut up | 3: neut down
   fclose(f);
   armar_lista(parts, rcut, *L);
   return 0;

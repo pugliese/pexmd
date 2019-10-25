@@ -35,18 +35,6 @@ float boltzmann(float sigma){
   return normaldist()*sigma;
 }
 
-/*
-float boltzmann(float sigma){
-  float sum = 0;
-  int n_samp = 24;
-  for(int k = 0; k < n_samp; k++){
-    sum = sum + uniform();
-  }
-  sum = (sum - 0.5*n_samp)*sqrt(12.0/n_samp)*sigma;
-  return sum;
-}
-*/
-
 float max(float a, float b){
   if (a>b){
     return a;
@@ -84,6 +72,22 @@ float norma(float* v){
     rsq += v[k]*v[k];
   }
   return rsq;
+}
+
+inline float distancia(float *q1, float *q2, int *delta_idx, float l){
+  double dq2 = 0;
+  for(int k = 0; k < 3; k++){
+    dq2 += (q1[k] - q2[k] - delta_idx[k]*l)*(q1[k] - q2[k] - delta_idx[k]*l);
+  }
+  return dq2;
+}
+
+inline float distancia_p(float *p1, float *p2){
+  double dp2 = 0;
+  for(int k = 0; k < 3; k++){
+    dp2 = dp2 + (p1[k] - p2[k])*(p1[k] - p2[k]);
+  }
+  return dp2;
 }
 
 int min_vec(float* v, int n){

@@ -20,6 +20,13 @@ inline float distancia_p(float *p1, float *p2){
   return dp2;
 }
 
+inline float interaction_QCNM(float r, struct QCNM *qcnm){
+  float pot = 0;
+  if (r <= qcnm->rcut){
+    pot = qcnm->V_o*(pow(qcnm->r_1/r, qcnm->p_1) - pow(qcnm->r_2/r, qcnm->p_2))/(1 + exp((r-qcnm->d)/qcnm->a)) - qcnm->shift;
+  }
+  return pot;
+}
 
 inline float interaction_panda_nn(float r, struct Panda_nn *panda_nn){
   float pot = 0;
@@ -56,12 +63,23 @@ inline float interaction_pauli_factorizado(float rsq, float *p1, float *p2, stru
   return pot;
 }
 
-inline float interaction_sin_LUT(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, float *pot_pauli){
+inline float interaction_pauli_factorizado_norma1(float rsq, float *p1, float *p2, struct Pauli *pauli){
+  float pot = 0;
+  float r2_norm = rsq/(pauli->qo*pauli->qo);
+  if (r2_norm <= pauli->scut2){
+    float p2_norm = sqrt(distancia_p(p1, p2))/pauli->po;
+    pot = (pauli->D*exp(-sqrt(r2_norm)) - pauli->shift)*exp(-p2_norm);
+  }
+  return pot;
+}
+
+inline float interaction_sin_LUT(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, double *pot_pauli){
 //  float pot, pot_pauli_aux;
   float pot;
   float r = sqrt(rsq);
   if (t1/2 == t2/2){
     pot = interaction_panda_nn(r, pot_tot->panda_nn);
+    //pot = interaction_panda_np(r, pot_tot->panda_np);
     if (t1 == t2){
       /*
       pot_pauli_aux = interaction_pauli(rsq, p1, p2, pot_tot->pauli);
@@ -76,9 +94,26 @@ inline float interaction_sin_LUT(int t1, int t2, float rsq, float *p1, float *p2
   return pot;
 }
 
+
+inline float interaction_con_QCNM(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, double *pot_pauli){
+  float r = sqrt(rsq);
+  float pot = interaction_QCNM(r, pot_tot->qcnm);
+  //float pot = eval_LUT(rsq, pot_tot->qcnm->LUT, pot_tot->qcnm->rcut2, pot_tot->qcnm->dr2);
+  if (t1 == t2){
+    /*
+    pot_pauli_aux = interaction_pauli(rsq, p1, p2, pot_tot->pauli);
+    *pot_pauli += pot_pauli_aux;
+    pot += pot_pauli_aux;
+    */
+    *pot_pauli += interaction_pauli_factorizado(rsq, p1, p2, pot_tot->pauli);
+    //*pot_pauli += interaction_pauli_factorizado_norma1(rsq, p1, p2, pot_tot->pauli);
+  }
+  return pot;
+}
+
 // ---------------------------- TABLAS -----------------------------------------
 
-inline float interaction(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, float *pot_pauli){
+inline float interaction(int t1, int t2, float rsq, float *p1, float *p2, struct Interaction *pot_tot, double *pot_pauli){
 //float pot, pot_pauli_aux;
   float pot;
   if (t1/2 == t2/2){
@@ -89,6 +124,7 @@ inline float interaction(int t1, int t2, float rsq, float *p1, float *p2, struct
       *pot_pauli += eval_LUT(s2, pot_tot->pauli->LUT, pot_tot->pauli->scut2, pot_tot->pauli->ds2);
       */
       *pot_pauli += interaction_pauli_factorizado(rsq, p1, p2, pot_tot->pauli);
+      //*pot_pauli += interaction_pauli_factorizado_norma1(rsq, p1, p2, pot_tot->pauli);
     }
   }else{
     pot = eval_LUT(rsq, pot_tot->panda_np->LUT, pot_tot->panda_np->rcut2, pot_tot->panda_np->dr2);
@@ -97,10 +133,10 @@ inline float interaction(int t1, int t2, float rsq, float *p1, float *p2, struct
 }
 
 float eval_LUT(float x, float *LUT, float xcut, float dx){
-  float res = 0;
   if(x < dx){
     return LUT[0];
   }
+  float res = 0;
   if (x < xcut){
     float a = x/dx;
     int i = (int) a;
@@ -151,10 +187,24 @@ float build_LUT_pauli(struct Pauli *pauli, int N){
   return ds2;
 }
 
-int build_LUTs(struct Interaction *pot_tot, int Nnp, int Nnn, int Np){
+float build_LUT_QCNM(struct QCNM *qcnm, int N){
+  float dr2 = qcnm->rcut2/N, r2 = 0;
+  qcnm->shift = 0;
+  qcnm->shift = interaction_QCNM(qcnm->rcut, qcnm);
+  qcnm->LUT = (float *) malloc(N*sizeof(float));
+  for(int i = 0; i < N; i++){
+    r2 = (i+1)*dr2;
+    qcnm->LUT[i] = interaction_QCNM(sqrt(r2), qcnm);
+  }
+  qcnm->dr2 = dr2;
+  return dr2;
+}
+
+int build_LUTs(struct Interaction *pot_tot, int Nnp, int Nnn, int Np, int Nq){
   build_LUT_np(pot_tot->panda_np, Nnp);
   build_LUT_nn(pot_tot->panda_nn, Nnn);
   build_LUT_pauli(pot_tot->pauli, Np);
+  build_LUT_QCNM(pot_tot->qcnm, Nq);
   return 0;
 }
 
@@ -162,6 +212,6 @@ int liberar_LUTs(struct Interaction *pot_tot){
   free(pot_tot->pauli->LUT);
   free(pot_tot->panda_nn->LUT);
   free(pot_tot->panda_np->LUT);
-
+  free(pot_tot->qcnm->LUT);
   return 0;
 }

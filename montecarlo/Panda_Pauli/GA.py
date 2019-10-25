@@ -1,111 +1,5 @@
 import numpy as np
-import matplotlib.pylab as plt
-import matplotlib.animation as animation
-import matplotlib.gridspec as gridspec
-import ctypes as ct
-import sys
-import copy
-plt.ion()
 
-# ---------------------------------------------------------------------------- #
-# ------------------------ Pandha+Pauli -------------------------------------- #
-# ---------------------------------------------------------------------------- #
-C_funcs = ct.CDLL('../Panda_Pauli/lib.so')
-
-class Pauli(ct.Structure):
-  """
-  Pauli interaction class to match struct from C
-  """
-  _fields_ = [("qo", ct.c_float), ("po", ct.c_float), ("D", ct.c_float), ("scut2", ct.c_float), ("shift", ct.c_float), ("LUT", ct.c_voidp), ("ds2", ct.c_float)]
-
-  def __init__(self, qo, po, D, scut2):
-    self.qo = qo
-    self.po = po
-    self.D = D
-    self.scut2 = scut2
-    self.shift = D*np.exp(-0.5*scut2)
-
-class Panda_np(ct.Structure):
-  """
-  Pandharipande potential for neutron-proton
-  interaction to match struct from C
-  """
-  _fields_ = [("mu_r", ct.c_float), ("mu_a", ct.c_float), ("V_r", ct.c_float), ("V_a", ct.c_float), ("rcut", ct.c_float), ("rcut2", ct.c_float),
-            ("shift", ct.c_float), ("LUT", ct.c_voidp), ("dr2", ct.c_float)]
-
-  def __init__(self, mu_r, mu_a, V_r, V_a, rcut):
-    self.mu_r = mu_r
-    self.mu_a = mu_a
-    self.V_r = V_r
-    self.V_a = V_a
-    self.rcut = rcut
-    self.rcut2 = rcut**2
-    self.shift = (V_r*np.exp(-mu_r*rcut) - V_a*np.exp(-mu_a*rcut))/rcut
-
-class Panda_nn(ct.Structure):
-  """
-  Pandharipande potential for neutron-neutron or
-  proton-proton interaction to match struct from C
-  """
-  _fields_ = [("mu_o", ct.c_float), ("V_o", ct.c_float), ("rcut", ct.c_float), ("rcut2", ct.c_float), ("shift", ct.c_float), ("LUT", ct.c_voidp), ("dr2", ct.c_float)]
-
-  def __init__(self, mu_o, V_o, rcut):
-    self.mu_o = mu_o
-    self.V_o = V_o
-    self.rcut = rcut
-    self.rcut2 = rcut**2
-    self.shift = V_o*np.exp(-mu_o*rcut)/rcut
-
-class TotalPotential(ct.Structure):
-  """
-  Total potential of interaction to match struct from C
-  """
-  _fields_ = [("pauli", ct.POINTER(Pauli)), ("panda_nn", ct.POINTER(Panda_nn)), ("panda_np", ct.POINTER(Panda_np)),  ("rcut", ct.c_float)]
-
-  def __init__(self, pauli, panda_nn, panda_np):
-    self.pauli = ct.pointer(pauli)
-    self.panda_nn = ct.pointer(panda_nn)
-    self.panda_np = ct.pointer(panda_np)
-    self.rcut = max([np.sqrt(pauli.scut2)*pauli.qo, panda_nn.rcut, panda_np.rcut])
-
-load_lammpstrj_c = C_funcs.load_lammpstrj
-load_lammpstrj_c.argtypes = [ct.c_char_p, ct.c_voidp, ct.c_voidp, ct.c_float]
-load_lammpstrj_c.restype = ct.c_int
-
-energia_sin_LUT_c = C_funcs.energia_sin_LUT
-energia_sin_LUT_c.argtypes = [ct.c_voidp, ct.c_voidp]
-energia_sin_LUT_c.restype = ct.c_int
-
-class Particles(ct.Structure):
-  """
-  Particles class to match struct from C
-  """
-  _fields_ = [("n", ct.c_int), ("type", ct.c_voidp), ("q", ct.c_voidp), ("p", ct.c_voidp), ("mass", ct.c_float), ("siguiente", ct.c_voidp),
-                ("anterior", ct.c_voidp), ("primero", ct.c_voidp), ("celda", ct.c_voidp), ("M", ct.c_int), ("l", ct.c_float),
-                ("energy_pauli", ct.c_float), ("energy_panda", ct.c_float), ("kinetic", ct.c_float)]
-
-  def __init__(self, n, mass):
-    self.n = n
-    self.mass = np.float32(mass)
-    self.q = np.zeros(3*n, dtype = np.float32).ctypes.data_as(ct.c_voidp)
-    self.p = np.zeros(3*n, dtype = np.float32).ctypes.data_as(ct.c_voidp)
-    self.kinetic = 0
-    self.energy_panda = 0
-    self.energy_pauli = 0
-
-  def load_lammpstrj(self, filename, L, rcut):
-    filename_p = ct.c_char_p(filename.encode('utf-8'))
-    #filename_p = ct.pointer(filename.encode('utf-8'))
-    L_p = L.ctypes.data_as(ct.c_voidp)
-    rcut_32 = np.float32(rcut)
-    return load_lammpstrj_c(filename_p, ct.pointer(self), L_p, rcut_32)
-
-  def energy(self, pot_tot):
-    return energia_sin_LUT_c(ct.pointer(self), ct.pointer(pot_tot))
-
-# ---------------------------------------------------------------------------- #
-# ------------------------ GA specific --------------------------------------- #
-# ---------------------------------------------------------------------------- #
 class GenCoding():
   """
   Class for chromosome representation
@@ -186,7 +80,7 @@ class Schemata():
 
   def select_parents(self, fitness):
     """
-    Return pool of parent selected (indexes) for reproduction.
+    Return pool of parents selected (indexes) for reproduction.
     Depends on self.selection.
     -----------
     In a tournament, we choose pairs of individuals and add to the pool the
@@ -197,7 +91,7 @@ class Schemata():
     In FPS and Ranking, we assing a probability of being added to the pool
     based on the fitness of the individual.
     FPS: Probability proportional to fitness
-    Ranking: Fixed probability based of fitness order
+    Ranking: Fixed probability based on fitness order
     """
     N = len(fitness)
     pool = np.zeros(N, dtype=np.int)
@@ -286,6 +180,7 @@ class Schemata():
     If Elitist, a random child is replaced with the actual fittest.
     Possible improvement: replace worst child?
     """
+    N = len(chromosomes[:,0])
     pool = self.select_parents(fitness)
     new_chromosomes = self.children(pool, chromosomes)
     new_chromosomes = self.mutate(new_chromosomes)
@@ -368,166 +263,3 @@ class Poblacion():
     Returns the mean fitness
     """
     return np.mean(self.fitness)
-
-option = sys.argv[1]
-
-if (option=="test"):
-  option_func = sys.argv[2]
-  # Only one maximum at (0,0)
-  function1 = lambda X: np.exp(-(X[0]**2+X[1]**2))
-  # Discrete degeneration of maximum: at (0,0.1) and (0,-1.1)
-  function2 = lambda X: np.exp(-9*(X[0]**2+(X[1]-0.1)**2)) + np.exp(-9*(X[0]**2+(X[1]+1.1)**2))
-  # Continous degeneration of maximum: at x^2+y^2 = 1/4
-  function3 = lambda X: np.exp(-9*(np.sqrt(X[0]**2+X[1]**2)-0.5)**2)
-  # One maximum and a continous degeneration of maximum: at x^2+y^2 = 1/4 and (0,0)
-  function4 = lambda X: np.exp(-25*(np.sqrt(X[0]**2+X[1]**2)-0.5)**2) + np.exp(-25*(X[0]**2+X[1]**2))
-  # Two continous degeneration of maximum: at x^2+y^2 = 1/4 and x^2+y^2 = 1
-  function5 = lambda X: np.exp(-25*(np.sqrt(X[0]**2+X[1]**2)-0.5)**2) + np.exp(-25*(np.sqrt(X[0]**2+X[1]**2)-1)**2)
-  # Pandharipande fit for SC lattice
-  if(option_func=="pandha" or option_func=="full"):
-    pauli = Pauli(qo = 1.644, po = 120, D = 207*(option_func!="pandha"), scut2 = (5.4/1.644)**2)
-    panda_nn = Panda_nn(1.5, 373.118, 5.4)
-    panda_np = Panda_np(mu_r = 1.7468, mu_a = 1.6, V_r = 3088.118, V_a = 2666.647, rcut = 5.4)
-    pot_tot = TotalPotential(pauli, panda_nn, panda_np)
-
-    rhos = np.array([0.140, 0.150, 0.160, 0.170, 0.180])
-    rhos = np.array([0.150, 0.153, 0.155, 0.158, 0.160, 0.162, 0.165, 0.167, 0.170])
-    E_NM_pandha = np.zeros_like(rhos)
-    vec_parts = [0 for rho in rhos]
-    L = np.array([3.0], dtype = np.float32)
-    for i in range(len(rhos)):
-      vec_parts[i] = Particles(64, 938)
-      vec_parts[i].load_lammpstrj("fundamental/config_1728_x1_%.3f_0.010.lammpstrj" %rhos[i], L, 5.4)
-#      vec_parts[i].load_lammpstrj("fundamental/config_redondear_%.3f_0.100.lammpstrj" %rhos[i], L, 5.4)
-      vec_parts[i].energy(pot_tot)
-      E_NM_pandha[i] = vec_parts[i].energy_panda/vec_parts[i].n
-    params_fit = np.polyfit(rhos, E_NM_pandha, 2)
-    E_NM = lambda rho: np.polyval(params_fit, rhos)
-    E_NM_vec = E_NM(rhos)
-    V_E = np.var(E_NM_vec)
-    #sqrtChi2_VE = np.sqrt(np.mean((E_NM_vec-E_NM_pandha)**2)/V_E)
-    Chi2_VE = np.mean((E_NM_vec-E_NM_pandha)**2)/V_E
-
-    def curva_energia_pandha(params):
-      global pot_tot, parts, panda_nn, panda_np, L
-      panda_np.V_a = params[0]*2666.647
-      panda_np.V_r = params[0]*3088.118
-      panda_nn.V_o = params[1]*373.118
-      Es = np.zeros_like(rhos)
-      for i in range(len(rhos)):
-        vec_parts[i].energy(pot_tot)
-        Es[i] = vec_parts[i].energy_panda/vec_parts[i].n
-      return Es
-
-    def functionpandha(params, alpha=2*np.pi/3):
-      Es = curva_energia_pandha(params)
-      Chi2 = np.mean((Es - E_NM_vec)**2)
-      return np.cbrt((1.0 + Chi2_VE)/(1.0 + Chi2/(V_E)))
-
-    def curva_energia_full(params):
-      global pot_tot, parts, panda_nn, panda_np, L
-      panda_np.V_a = params[0]*2666.647
-      panda_np.V_r = params[0]*3088.118
-      panda_nn.V_o = params[1]*373.118
-      Es = np.zeros_like(rhos)
-      for i in range(len(rhos)):
-        vec_parts[i].energy(pot_tot)
-        Es[i] = (vec_parts[i].energy_panda + vec_parts[i].kinetic)/vec_parts[i].n
-      return Es
-
-    def functionfull(params, alpha=2*np.pi/3):
-      Es = curva_energia_full(params)
-      Chi2 = np.mean((Es - E_NM_vec)**2)
-      return np.cbrt(1.0/(1.0 + Chi2/(V_E)))
-
-    l_bounds = [0.5, 0.5]
-    u_bounds = [2.5, 2.5]
-
-  # Chosen function
-  function = eval("function"+option_func)
-
-  #coding = GenCoding([10,10], [-1, -1.5], [1, 0.5])
-  coding = GenCoding([10, 10], l_bounds, u_bounds)
-  scheme = Schemata('Ranking', 2, 0.005, True)
-  N = 50
-  solutions = Poblacion(N, coding)
-  F = solutions.eval_fitness(function)
-  N_steps = 100
-  mean_F = np.zeros(N_steps+1)
-  max_F = np.zeros(N_steps+1)
-  mean_F[0] = F
-  max_F[0] = solutions.best_fitness
-
-  fig1 = plt.figure(figsize=(23.8, 12.4))
-  gs = gridspec.GridSpec(1, 2, width_ratios=[2,1])
-  #ax1 = fig1.add_subplot(gs[0], autoscale_on=False, xlim=(-1, 1), ylim=(-1.5, 0.5))
-  ax1 = fig1.add_subplot(gs[0], autoscale_on=False, xlim=(l_bounds[0], u_bounds[0]), ylim=(l_bounds[1], u_bounds[1]))
-  ax1.grid()
-  line2, = ax1.plot([], [], "ro", markersize=15)
-  linefittest, = ax1.plot([], [], "g*", markersize=15)
-  line1, = ax1.plot([], [], "bs")
-  ax2 = fig1.add_subplot(gs[1], autoscale_on=False, xlim=(0, N_steps), ylim=(-0.05, 1.1))
-  ax2.grid()
-  ax2.set_xlabel("Generacion")
-  ax2.set_ylabel("Fitness")
-  line3, = ax2.plot([], [], "r-")
-  line4, = ax2.plot([], [], "b-")
-  ax2.legend(["Fitness promedio", "Mejor fitness"], loc = 'upper center')
-  template = 'Generacion %d'
-  text1 = ax1.text(0.35, 0.05, '', transform=ax1.transAxes, fontsize=20)
-  if(option_func == "1"):
-    line2.set_data([0], [0])
-  if(option_func == "2"):
-    line2.set_data([0, 0], [0.1, -1.1])
-  theta = np.linspace(0, 2*np.pi, 100)
-  if(option_func == "3"):
-    line2.set_data(0.5*np.cos(theta), 0.5*np.sin(theta))
-  if(option_func == "4"):
-    line2.set_data(np.concatenate([0.5*np.cos(theta),[0]]), np.concatenate([0.5*np.sin(theta),[0]]))
-  if(option_func == "5"):
-    line2.set_data(np.concatenate([0.5*np.cos(theta),np.cos(theta)]), np.concatenate([0.5*np.sin(theta),np.sin(theta)]))
-
-  def init():
-    line1.set_data([], [])
-    line3.set_data([], [])
-    line4.set_data([], [])
-    linefittest.set_data([], [])
-    text1.set_text('')
-    return line1, text1, line3, line4, linefittest
-
-  def animate(i):
-    global mean_F, max_F, solutions
-    Ps = solutions.all_params
-    Xs, Ys = Ps[0, :], Ps[1, :]
-    line1.set_data(Xs, Ys)
-    text1.set_text(template %(i+1))
-    mean_F[i+1] = solutions.advance(scheme, function)
-    max_F[i+1] = solutions.best_fitness
-    line3.set_data(np.arange(i+1), mean_F[:i+1])
-    line4.set_data(np.arange(i+1), max_F[:i+1])
-    linefittest.set_data([solutions.best_params[0]], [solutions.best_params[1]])
-    return line1, text1, line3, line4, linefittest
-
-  anim = animation.FuncAnimation(fig1, animate, range(N_steps), interval=300, blit=True, init_func = init, repeat = False)
-  plt.show()
-  if(len(sys.argv)>3):
-    Writer = animation.writers['avconv']
-    writer = Writer(fps=3, metadata=dict(artist='Me'), bitrate=1800)
-    anim.save('GA_conv'+option_func+'.mp4', writer=writer)
-
-"""
-pauli = Pauli(qo = 1.644, po = 120, D = 207, scut2 = (5.4/1.644)**2)
-panda_nn = Panda_nn(1.5, 373.118, 5.4)
-panda_np = Panda_np(mu_r = 1.7468, mu_a = 1.6, V_r = 3088.118, V_a = 2666.647, rcut = 5.4)
-pot_tot = TotalPotential(pauli, panda_nn, panda_np)
-
-parts = Particles(64, 938)
-L = np.array([3.0], dtype = np.float32)
-parts.load_lammpstrj("fundamental/config_1728_x1_0.160_0.010.lammpstrj", L, 5.4)
-A = ct.cast(parts.p, ct.POINTER(ct.c_float))
-#print(0.5*np.sum(np.array([A[i] for i in range(3*parts.n)])**2/938)/parts.n)
-print(parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n)
-a = parts.energy(pot_tot)
-print(parts.kinetic/parts.n, parts.energy_panda/parts.n, parts.energy_pauli/parts.n)
-#print(a)
-"""

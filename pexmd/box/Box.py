@@ -42,19 +42,7 @@ class Box(object):
 
   def wrap_boundary(self, x, v):
     """
-    Apply boundary conditions
-
-    Parameters
-    ----------
-
-    x, v : NumPy array
-        Positions and velocities of the particles
-
-    Returns
-    -------
-
-    x, v : NumPy array
-        Positions and velocities updated
+    Takes position `x` and velocity `v` and returns them with boundary conditions
     """
     x0p = self.x0.ctypes.data_as(ct.c_voidp)
     xfp = self.xf.ctypes.data_as(ct.c_voidp)

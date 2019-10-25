@@ -186,6 +186,32 @@ float delta_fases(float *x, float *p, long int* pairs, long int npairs, float *d
   return 0;
 }
 
+float delta_fases2(float *x, float *p, long int n, float *dq, float *dp, float L){
+  int l = 0;
+  for (int i = 1; i < n; i++) {
+    for(int j = 0; j < i; j++) {
+      float delta_q[3];
+      float delta_p[3];
+      for (int k = 0; k < 3; k++) {
+        delta_q[k] = x[3*i+k] - x[3*j+k];
+        delta_p[k] = p[3*i+k] - p[3*j+k];
+        delta_q[k] = delta_q[k] + L*(delta_q[k] < -0.5*L) - L*(0.5*L < delta_q[k]);
+      }
+      dq[l] = 0;
+      dp[l] = 0;
+      for (int k = 0; k < 3; k++) {
+        dq[l] += delta_q[k]*delta_q[k];
+        dp[l] += delta_p[k]*delta_p[k];
+      }
+      dq[l] = sqrt(dq[l]);
+      dp[l] = sqrt(dp[l]);
+      l++;
+    }
+  }
+  return 0;
+}
+
+
 float delta_fases_sin_PBC(float *x, float *p, long int* pairs, long int npairs, float *dq, float *dp){
 
   for (int l = 0; l < npairs; l++) {
