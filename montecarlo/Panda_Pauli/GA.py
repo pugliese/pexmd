@@ -130,8 +130,8 @@ class Schemata():
       i = -1
       for k in range(N):
         while (suma < (start + k*dP)):
-          suma += probs[i]
           i += 1
+          suma += probs[i]
         pool[k] = i
     return pool
 
